@@ -65,16 +65,16 @@ public class SE3 {
 		
 		final double[] t = {vec6[0], vec6[1], vec6[2]}; // vec3, parameters for translation.
 		final double[] w = {vec6[3], vec6[4], vec6[5]}; // vec3, parameters for rotation.
-		final double theta_sq = dot(w, w);
+		final double theta_sq = Vec.dot(w, w);
 		final double theta = Math.sqrt(theta_sq);
 		double A;
 		double B;
 		
-		final double[] cross = cross(w, t); // cross of rotation, translation.
+		final double[] cross = Vec.cross(w, t); // cross of rotation, translation.
 	    if (theta_sq < 1e-12) {
 	        A = 1.0 - one_6th * theta_sq;
 	        B = 0.5;
-	        result.setTranslation(vecAdd2(t, scalarMult2(cross, 0.5)));
+	        result.setTranslation(Vec.vecAdd2(t, Vec.scalarMult2(cross, 0.5)));
 	    } else {
 	        double C;
 	        if (theta_sq < 1e-12) {
@@ -87,7 +87,7 @@ public class SE3 {
 	            B = (1.0 - Math.cos(theta)) * (inv_theta * inv_theta);
 	            C = (1.0 - A) * (inv_theta * inv_theta);
 	        }
-	        result.setTranslation(vecAdd2(vecAdd2(t, scalarMult2(cross, B)), scalarMult2(cross(w, cross), C)));
+	        result.setTranslation(Vec.vecAdd2(Vec.vecAdd2(t, Vec.scalarMult2(cross, B)), Vec.scalarMult2(Vec.cross(w, cross), C)));
 	    }
 
 	    result.rotation.matrix = SO3.rodrigues_so3_exp(w, A, B);
@@ -97,13 +97,14 @@ public class SE3 {
 	// Test
 	public static void main(String[] args) {
 		
-		double[] vec6 = new double[]{1,1,1,0.5,0,0};//{0.9257751770440343, 0.6696269810349835, 0.7949576278265412, 2.2639318115967644, 0.45278636231935293, 0.45278636231935293};//{1,1,1,0.5,0.1,0.1};
+		double[] vec6 = new double[]{1,1,1,0.53,0,0};//{0.9257751770440343, 0.6696269810349835, 0.7949576278265412, 2.2639318115967644, 0.45278636231935293, 0.45278636231935293};//{1,1,1,0.5,0.1,0.1};
 		SE3 se3 = SE3.exp(vec6);
 		
-		for (int i=0 ; i<1000 ; i++) {
+		// Test for number drift
+		for (int i=0 ; i<1000000 ; i++) {
 			//System.out.println("rot mat = "+se3.rotation.matrix);
 			//System.out.println("trans mat = "+se3.getTranslationMat());
-			System.out.println("=" +Arrays.toString(SE3.ln(se3)));
+			System.out.println("vec = " +Arrays.toString(SE3.ln(se3)));
 			
 			vec6 = SE3.ln(se3);
 			se3 = SE3.exp(vec6);
@@ -111,11 +112,11 @@ public class SE3 {
 		}
 	}
 	
-	static double[] ln(SE3 se3) {
+	public static double[] ln(SE3 se3) {
 		double[] rot = se3.getRotation().ln();
 		
 		
-		final double theta = Math.sqrt(dot(rot, rot));
+		final double theta = Math.sqrt(Vec.dot(rot, rot));
 		
 
 		double shtot = 0.5;
@@ -124,16 +125,16 @@ public class SE3 {
 		}
 
 		// now do the rotation
-		final SO3 halfrotator = new SO3(SO3.exp(scalarMult2(rot, -0.5)));
+		final SO3 halfrotator = new SO3(SO3.exp(Vec.scalarMult2(rot, -0.5)));
 		double[] rottrans = halfrotator.matrix.mmul(se3.getTranslationMat()).getValues();
 
 		if(theta > 1e-12){
-		    vecMinus(rottrans, scalarMult2(rot, (dot(se3.getTranslation(), rot) * (1.0-2.0*shtot) / dot(rot, rot))));
+			Vec.vecMinus(rottrans, Vec.scalarMult2(rot, (Vec.dot(se3.getTranslation(), rot) * (1.0-2.0*shtot) / Vec.dot(rot, rot))));
 		} else {
-		    vecMinus(rottrans, scalarMult2(rot, (dot(se3.getTranslation(), rot)/24.0)));
+			Vec.vecMinus(rottrans, Vec.scalarMult2(rot, (Vec.dot(se3.getTranslation(), rot)/24.0)));
 		}
 
-		scalarMult(rottrans,1.0/(2.0 * shtot));
+		Vec.scalarMult(rottrans,1.0/(2.0 * shtot));
 
 		double[] result = {rottrans[0],rottrans[1],rottrans[2],rot[0],rot[1],rot[2]};
 		return result;
@@ -154,122 +155,5 @@ public class SE3 {
 	public void setTranslation(double x, double y, double z) {
 		double[][] translationVec3 = {{x},{y},{z}};
 		translation = new jeigen.DenseMatrix(translationVec3);
-	}
-	
-	
-	
-	
-	
-	
-
-	/**
-	 * Calculates magnitude of a vector.
-	 */
-	public static double magnitude(double[] vec) {
-		double magnitude = 0;
-		for (int i=0 ; i<vec.length ; i++) {
-			magnitude += vec[i] * vec[i];
-		}
-		return Math.sqrt(magnitude);
-	}
-	
-	/**
-	 * Calculates dot product of 2 vectors. Assumes vec0.length == vec1.length.
-	 */
-	public static double dot(double[] vec0, double[] vec1) {
-		double dot = 0;
-		for (int i=0 ; i<vec0.length ; i++) {
-			dot += vec0[i] * vec1[i];
-		}
-		return dot;
-	}
-	
-	/**
-	 * Calculates cross product of 2 vectors. Assumes vectors of length 3
-	 */
-	public static double[] cross(double[] a, double[] b) {
-		double[] result = {a[1]*b[2]-a[2]*b[1],
-						   a[2]*b[0]-a[0]*b[2],
-						   a[0]*b[1]-a[1]*b[0]};
-		return result;
-	}
-	
-	/**
-	 * Scalar multiply s to vector vec0
-	 */
-	public static void scalarMult(double[] vec0, double s) {
-		for (int i=0 ; i<vec0.length ; i++) {
-			vec0[i] *= s;
-		}
-	}
-	
-	/**
-	 * Scalar multiply s to vector vec0
-	 */
-	public static double[] scalarMult2(double[] vec0, double s) {
-		double[] result = new double[vec0.length];
-		for (int i=0 ; i<vec0.length ; i++) {
-			result[i] = vec0[i] * s;
-		}
-		return result;
-	}
-	
-	/**
-	 * Scalar add s to vector vec0
-	 */
-	public static void scalarAdd(double[] vec0, double s) {
-		for (int i=0 ; i<vec0.length ; i++) {
-			vec0[i] += s;
-		}
-	}
-	
-	/**
-	 * Scalar add s to vector vec0
-	 */
-	public static double[] scalarAdd2(double[] vec0, double s) {
-		double[] result = new double[vec0.length];
-		for (int i=0 ; i<vec0.length ; i++) {
-			result[i] = vec0[i] + s;
-		}
-		return result;
-	}
-	
-	/**
-	 * Adds 2 vectors
-	 */
-	public static double[] vecAdd2(double[] vec0, double[] vec1) {
-		double[] result = new double[vec0.length];
-		for (int i=0 ; i<vec0.length ; i++) {
-			result[i] = vec0[i] + vec1[i];
-		}
-		return result;
-	}
-	
-
-	/**
-	 * Minus 2 vectors
-	 */
-	public static void vecMinus(double[] vec0, double[] vec1) {
-		for (int i=0 ; i<vec0.length ; i++) {
-			vec0[i] -= vec1[i];
-		}
-	}
-	
-	/**
-	 * Minus 2 vectors
-	 */
-	public static double[] vecMinus2(double[] vec0, double[] vec1) {
-		double[] result = new double[vec0.length];
-		for (int i=0 ; i<vec0.length ; i++) {
-			result[i] = vec0[i] - vec1[i];
-		}
-		return result;
-	}
-	
-	/**
-	 * Make unit vector
-	 */
-	public static void unit(double[] vec) {
-		scalarMult(vec, magnitude(vec));
 	}
 }

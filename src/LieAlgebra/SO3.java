@@ -58,7 +58,7 @@ public class SO3 {
 				
 		jeigen.DenseMatrix result = null;
 		
-		double theta_sq = dot(vec3, vec3);
+		double theta_sq = Vec.dot(vec3, vec3);
 		double theta = Math.sqrt(theta_sq);
 		double A;
 		double B;
@@ -132,22 +132,22 @@ public class SO3 {
 		// 3x1 vector
 		double[] result = new double[3];
 		
-		double[][] my_matrix = toArray(matrix);
+		double[][] my_matrix = Vec.toArray(matrix);
 		
 		final double cos_angle = (my_matrix[0][0] + my_matrix[1][1] + my_matrix[2][2] - 1.0) * 0.5;
 		result[0] = (my_matrix[2][1]-my_matrix[1][2])/2.0;
 		result[1] = (my_matrix[0][2]-my_matrix[2][0])/2.0;
 		result[2] = (my_matrix[1][0]-my_matrix[0][1])/2.0;
 		
-		double sin_angle_abs = Math.sqrt(dot(result,result));
+		double sin_angle_abs = Math.sqrt(Vec.dot(result,result));
 		if (cos_angle > M_SQRT1_2) {            // [0 - Pi/4[ use asin
 		    if(sin_angle_abs > 0){
 		    	final double s = Math.asin(sin_angle_abs) / sin_angle_abs;
-		    	scalarMult(result, s);
+		    	Vec.scalarMult(result, s);
 		    }
 		} else if( cos_angle > -M_SQRT1_2) {    // [Pi/4 - 3Pi/4[ use acos, but antisymmetric part
 			final double angle_s = Math.acos(cos_angle) / sin_angle_abs;
-			scalarMult(result, angle_s);
+			Vec.scalarMult(result, angle_s);
 		} else {  // rest use symmetric part
 		    // antisymmetric part vanishes, but still large rotation, need information from symmetric part
 			final double angle = M_PI - Math.asin(sin_angle_abs);
@@ -170,63 +170,15 @@ public class SO3 {
 		        r2[2] = d2;
 		    }
 		    // flip, if we point in the wrong direction!
-		    if(dot(r2, result) < 0)
-		    	scalarMult(r2, -1);
+		    if(Vec.dot(r2, result) < 0)
+		    	Vec.scalarMult(r2, -1);
 
-		    unit(r2);
-		    scalarMult(r2,angle);
+		    Vec.unit(r2);
+		    Vec.scalarMult(r2,angle);
 		    result = r2;
 		}
 
 		return result;
-	}
-	
-	
-	/**
-	 * Calculates magnitude of a vector.
-	 */
-	public static double magnitude(double[] vec) {
-		double magnitude = 0;
-		for (int i=0 ; i<vec.length ; i++) {
-			magnitude += vec[i] * vec[i];
-		}
-		return Math.sqrt(magnitude);
-	}
-	
-	/**
-	 * Calculates dot product of 2 vectors. Assumes vec0.length == vec1.length.
-	 */
-	public static double dot(double[] vec0, double[] vec1) {
-		double dot = 0;
-		for (int i=0 ; i<vec0.length ; i++) {
-			dot += vec0[i] * vec1[i];
-		}
-		return dot;
-	}
-	
-	/**
-	 * Scalar multiply s to vector vec0
-	 */
-	public static void scalarMult(double[] vec0, double s) {
-		for (int i=0 ; i<vec0.length ; i++) {
-			vec0[i] *= s;
-		}
-	}
-	
-	/**
-	 * Make unit vector
-	 */
-	public static void unit(double[] vec) {
-		scalarMult(vec, magnitude(vec));
-	}
-	
-	/**
-	 * Matrix to array
-	 */
-	public static double[][] toArray(jeigen.DenseMatrix mat) {
-		return new double[][] {{mat.get(0, 0),mat.get(0, 1),mat.get(0, 2)},
-   							   {mat.get(1, 0),mat.get(1, 1),mat.get(1, 2)},
-							   {mat.get(2, 0),mat.get(2, 1),mat.get(2, 2)}};
 	}
 	
 }

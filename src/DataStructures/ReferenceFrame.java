@@ -6,6 +6,10 @@ import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Random;
 
+import org.opencv.core.Mat;
+import org.opencv.highgui.Highgui;
+import org.opencv.imgproc.Imgproc;
+
 import Utils.Constants;
 
 public class ReferenceFrame {
@@ -42,11 +46,28 @@ public class ReferenceFrame {
 		// Set to 1s for now.
 		Arrays.fill(inverseDepth, 1);
 		
+		Random rand = new Random();
+		rand.setSeed(System.nanoTime());
 		// Randomize 0.5 - 1.5
-		//Random rand = new Random();
-		//for (int i=0 ; i<inverseDepth.length ; i++) {
-		//	inverseDepth[i] = 0.5f + rand.nextFloat();
-		//}
+//		for (int i=0 ; i<inverseDepth.length ; i++) {
+//			inverseDepth[i] = 0.5f + rand.nextFloat();
+//		}
+		
+		
+		// Use tsukuba ground truth as depth.
+		Mat tsukubaGroundTruth = Highgui.imread("test0.jpg");
+		Imgproc.cvtColor(tsukubaGroundTruth, tsukubaGroundTruth, Imgproc.COLOR_RGB2GRAY);
+		byte[] data = new byte[(int) tsukubaGroundTruth.total()];
+		tsukubaGroundTruth.get(0, 0, data);
+		for (int i=0 ; i<tsukubaGroundTruth.total() ; i++) {
+			if ((255 - data[i] &0xFF) != 0) {
+				inverseDepth[i] = 1.0f/(float)(255 - data[i] & 0xFF);
+			} else {
+				inverseDepth[i] = 0.5f + rand.nextFloat();
+			}
+		}
+		
+
 		
 		// Test drawing a box
 //		int index = 0;
@@ -54,8 +75,6 @@ public class ReferenceFrame {
 //			for (int i=0 ; i<width() ; i++) {
 //				if (j > 100 && j < 200 && i>100 && i<200) {
 //					inverseDepth[index] = 0.5f;
-//				} else if (j > 300 && j < 400 && i>300 && i<400) {
-//					inverseDepth[index] = 0.7f;
 //				} else {
 //					inverseDepth[index] = 1.0f;
 //				}

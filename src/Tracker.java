@@ -1,13 +1,17 @@
 import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 
 import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
 
 import DataStructures.Frame;
 import DataStructures.ReferenceFrame;
+import LieAlgebra.SE3;
+import LieAlgebra.Vec;
 import Utils.Constants;
 
 
@@ -20,57 +24,155 @@ public class Tracker {
 	 */
 	void trackFrame(ReferenceFrame referenceFrame, Frame frame) {
 		
-		// TODO: Set an initial estimate
+		// Perform twiddle
 		
-		// Get 3D points of reference frame
-		referenceFrame.pointCloud = referenceFrame.createPointCloud(
-				referenceFrame.inverseDepth,
-				referenceFrame.width(), referenceFrame.height());
+		// Set an initial estimate
+		double[] estimateVec6 = {0,0,0,0,0,0};
+		double[] incrementVec6 = {0.1,0.1,0.1,0.05,0.05,0.05};
+		double successMultiplier = 1.3;
+		double failureMultiplier = 0.7;
 		
+		SE3 frameToRefEstimate = SE3.exp(estimateVec6);
+		
+		double minSSD = calculateSSD(referenceFrame, frame, frameToRefEstimate);
+		System.out.println("Min SSD: " + minSSD);
+		
+		
+		int iterationCount = 0;
+		while(true) {
+			iterationCount++;
+			double incrementMagnitude = Vec.magnitude(incrementVec6);
+			
+
+			System.out.println(iterationCount);
+			System.out.println(incrementMagnitude);
+			System.out.println("Min SSD: " + minSSD);
+			
+			System.out.println("IncrementVec: " + Arrays.toString(incrementVec6));
+			System.out.println("Vec6: " + Arrays.toString(SE3.ln(frameToRefEstimate)));
+			//System.out.println("Rotation: " + estimate.getRotationMat());
+			//System.out.println("Translation: " + estimate.getTranslationMat());
+			
+			if (incrementMagnitude < 1e-6 || minSSD < 100) {
+				break;
+			}
+			
+			for (int i=0 ; i<incrementVec6.length ; i++) {
+				
+				estimateVec6[i] += incrementVec6[i];
+				frameToRefEstimate = SE3.exp(estimateVec6);
+				
+				double SSD = calculateSSD(referenceFrame, frame, frameToRefEstimate);
+				if (SSD < minSSD) {
+					minSSD = SSD;
+					incrementVec6[i] *= successMultiplier;
+				} else {
+					estimateVec6[i] -= 2*incrementVec6[i];
+					frameToRefEstimate = SE3.exp(estimateVec6);
+					SSD = calculateSSD(referenceFrame, frame, frameToRefEstimate);
+					if (SSD < minSSD) {
+						minSSD = SSD;
+						incrementVec6[i] *= -successMultiplier;
+					} else {
+						estimateVec6[i] += incrementVec6[i];
+						frameToRefEstimate = SE3.exp(estimateVec6);
+						incrementVec6[i] *= failureMultiplier;
+					}
+				}
+				
+				
+			}
+
+		}
+		
+
 		// Test writing 3D point cloud
 		try {
-			referenceFrame.writePointCloudToFile("out.xyz", referenceFrame.pointCloud,
+			referenceFrame.writePointCloudToFile("out1.xyz", referenceFrame.pointCloud,
 					referenceFrame.width(), referenceFrame.height());
 		} catch (FileNotFoundException | UnsupportedEncodingException e) {
 			e.printStackTrace();
 		}
 		
-		// Get SO3 (?)
-		// Get rotation, translation matrix
-		jeigen.DenseMatrix rotationMat = null;
-		jeigen.DenseMatrix translationVec = null;
-		
-		// Dummy values
-		rotationMat = new jeigen.DenseMatrix(new double[][]{{1,0,0},{0,1,0},{0,0,1}});
-		translationVec = new jeigen.DenseMatrix(new double[][]{{0},{0},{0}});
-		
 
+		jeigen.DenseMatrix rotationMat = frameToRefEstimate.getRotationMat();
+		jeigen.DenseMatrix translationVec = frameToRefEstimate.getTranslationMat();
+		for (int i=0 ; i<referenceFrame.pointCloud.length ; i++) {
+			// Each 3D point
+			jeigen.DenseMatrix point = referenceFrame.pointCloud[i];
+			
+			// Warp to 2D image by estimate
+			jeigen.DenseMatrix warpedPoint = rotationMat.mmul(point).add(translationVec);
+			referenceFrame.pointCloud[i] = warpedPoint;
+		}
+		
+		// Test writing 3D point cloud
+		try {
+			referenceFrame.writePointCloudToFile("out2.xyz", referenceFrame.pointCloud,
+					referenceFrame.width(), referenceFrame.height());
+		} catch (FileNotFoundException | UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+		
+		System.out.println("IncrementVec: " + Arrays.toString(incrementVec6));
+		System.out.println("Vec6: " + Arrays.toString(SE3.ln(frameToRefEstimate)));
+		System.out.println("Rotation: " + frameToRefEstimate.getRotationMat());
+		System.out.println("Translation: " + frameToRefEstimate.getTranslationMat());
+		
+		
+	}
+	
+	int count = 0;
+	public double calculateSSD(ReferenceFrame referenceFrame, Frame frame, SE3 frameToRefPose) {
+		count++;
+
+		// Get 3D points of reference frame
+		if (referenceFrame.pointCloud == null) {
+			referenceFrame.pointCloud = referenceFrame.createPointCloud(
+					referenceFrame.inverseDepth,
+					referenceFrame.width(), referenceFrame.height());
+		}
+		
+		// Get rotation, translation matrix
+		jeigen.DenseMatrix rotationMat = frameToRefPose.getRotationMat();
+		jeigen.DenseMatrix translationVec = frameToRefPose.getTranslationMat();
+		
+		Mat debugImage = new Mat(480, 640, CvType.CV_8UC1);
+		byte[] debugArray = new byte[(int) debugImage.total()];
+		debugImage.get(0, 0, debugArray);
+		
+		
 		// Calculate SSD
-		float SSD = 0;
+		double SSD = 0;
 		int validPoints = 0;
 		for (int i=0 ; i<referenceFrame.pointCloud.length ; i++) {
 			// Each 3D point
 			jeigen.DenseMatrix point = referenceFrame.pointCloud[i];
 			
 			// Warp to 2D image by estimate
-			jeigen.DenseMatrix warpedPoint = point;//rotationMat.mmul(point).add(translationVec);
+			jeigen.DenseMatrix warpedPoint = rotationMat.mmul(point).add(translationVec);
 			
 			// Image points
 			double u = (warpedPoint.get(0, 0)/warpedPoint.get(2, 0))*Constants.fx + Constants.cx;
 			double v = (warpedPoint.get(1, 0)/warpedPoint.get(2, 0))*Constants.fy + Constants.cy;
 			
-			// TODO: Check image points within bounds
+			// Check image points within bounds
+			if (!(u>1 && v>1 && u<frame.width()-1 && v<frame.height()-1)) {
+				continue;
+			}
 			
-			
-			// TODO: Get interpolated value at image points, from frame, make this faster.
+			// TODO: Get interpolated value at image points from frame.
 			// just get non-interpolated value for now
-			float intensity = (int)frame.imageArray[(int)v*frame.width() + (int)u] & 0xFF;
+			//float intensity = (int)frame.imageArray[(int)v*frame.width() + (int)u] & 0xFF;
+			float intensity = interpolatedPixel(frame.imageArray, u, v, frame.width());
+
+			debugArray[i] = (byte)intensity;
 			
 			// convert signed/unsigned byte
 			float referenceFrameIntensity = (int) referenceFrame.frame.imageArray[i] & 0xFF;
 			
-			// TODO: Change this
-			float residual = intensity - referenceFrameIntensity;
+			// TODO: Change this according to paper, code.
+			float residual = referenceFrameIntensity - intensity;
 			
 			float squaredResidual = residual*residual;
 			SSD += squaredResidual;
@@ -78,40 +180,20 @@ public class Tracker {
 			
 		}
 		
+		debugImage.put(0, 0, debugArray);
+		Highgui.imwrite("debugImage"+count+"-"+ SSD + "-" + validPoints + ".jpg", debugImage);
 		
-		// Update estimate
-		
-		
-		
-	}
-	
-	
-	byte[] array1 = null;
-	byte[] array2 = null;
-	// Calculate SSD between 2 Mats
-	// image1 and image 2 must be of same size, 8bit, 1 channel
-	int calcSSD(Mat image1, Mat image2) {
-		
-		int size = (int) (image1.total());
-		
-		// Reuse array of larger size, saves time creating a new array.
-		if (array1 == null || array1.length < size) {
-			array1 = new byte[size];
-			array2 = new byte[size];
+		// Some condition to make sure there are some valid points.
+		if (validPoints <= frame.width()*frame.height()*0.5) {
+			return Double.MAX_VALUE;
 		}
 		
-		// Get image pixels
-		image1.get(0, 0, array1);
-		image2.get(0, 0, array2);
+		double ratio = SSD/validPoints;
 		
-		// Calculate and return SSD
-		int SSD = 0;
-		int difference = 0;
-		// TODO: multithread this loop?
-		for (int i=0 ; i<size ; i++) {
-			difference = array1[i] - array2[i];
-			SSD += difference * difference;
-		}
+//		System.out.println("SSD: " + SSD);
+//		System.out.println("Valid points: " + validPoints);
+//		System.out.println("Ratio: " + ratio);
+		
 		return SSD;
 	}
 	
@@ -127,11 +209,35 @@ public class Tracker {
 		Mat image1 = null;
 		Mat image2 = null;
 		image1 = Highgui.imread("test1.jpg");
-		image2 = Highgui.imread("test1.jpg");
+		image2 = Highgui.imread("test2.jpg");
 		
 		// Convert to grayscale
 		Imgproc.cvtColor(image1, image1, Imgproc.COLOR_RGB2GRAY);
 		Imgproc.cvtColor(image2, image2, Imgproc.COLOR_RGB2GRAY);
+		
+		// Reduce resolution
+//		Imgproc.pyrDown(image1, image1);
+//		Imgproc.pyrDown(image2, image2);
+//		
+//		Imgproc.pyrUp(image1, image1);
+//		Imgproc.pyrUp(image2, image2);
+//		
+//		Imgproc.pyrDown(image1, image1);
+//		Imgproc.pyrDown(image2, image2);
+//		
+//		Imgproc.pyrUp(image1, image1);
+//		Imgproc.pyrUp(image2, image2);
+		
+		
+		
+//		Imgproc.pyrDown(image1, image1);
+//		Imgproc.pyrDown(image2, image2);
+//		Imgproc.pyrDown(image1, image1);
+//		Imgproc.pyrDown(image2, image2);
+//		Imgproc.pyrDown(image1, image1);
+//		Imgproc.pyrDown(image2, image2);
+		
+		System.out.println("Image sizes: " +  image1.width() + ", " + image1.height());
 		
 		
 		Frame frame1 = new Frame(image1);
@@ -143,6 +249,24 @@ public class Tracker {
 		Tracker tracker = new Tracker();
 		tracker.trackFrame(refFrame, frame2);
 		
+	}
+	
+	
+	static float interpolatedPixel(byte[] dataArray, double x, double y, int width) {
+
+		int ix = (int)x;
+		int iy = (int)y;
+		float dx = (float) (x - ix);
+		float dy = (float) (y - iy);
+		float dxdy = dx*dy;
+		int bp = ix+iy*width;
+		
+		float res =   dxdy 			* (float)((int)dataArray[bp+1+width] & 0xFF)
+					+ (dy-dxdy) 	* (float)((int)dataArray[bp+width] & 0xFF)
+					+ (dx-dxdy) 	* (float)((int)dataArray[bp+1] & 0xFF)
+					+ (1-dx-dy+dxdy)* (float)((int)dataArray[bp] & 0xFF);
+
+		return res;
 		
 	}
 	
