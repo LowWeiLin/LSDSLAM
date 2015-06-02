@@ -28,68 +28,76 @@ public class Tracker {
 		
 		// Set an initial estimate
 		double[] estimateVec6 = {0,0,0,0,0,0};
+		SE3 frameToRefEstimate = SE3.exp(estimateVec6);
+
 		double[] incrementVec6 = {0.1,0.1,0.1,0.05,0.05,0.05};
 		double successMultiplier = 1.3;
 		double failureMultiplier = 0.7;
-		
-		SE3 frameToRefEstimate = SE3.exp(estimateVec6);
-		
-		double minSSD = calculateSSD(referenceFrame, frame, frameToRefEstimate);
-		System.out.println("Min SSD: " + minSSD);
-		
-		
-		int iterationCount = 0;
-		while(true) {
-			iterationCount++;
-			double incrementMagnitude = Vec.magnitude(incrementVec6);
-			
 
-			System.out.println(iterationCount);
-			System.out.println(incrementMagnitude);
+		int iterationCount = 0;
+		for (int level=Constants.SE3TRACKING_MAX_LEVEL-1 ;
+				level>=Constants.SE3TRACKING_MIN_LEVEL ;
+				level-=1) {
+			
+			incrementVec6 = new double[]{0.1,0.1,0.1,0.05,0.05,0.05};
+			
+			double minSSD = calculateSSD(referenceFrame, frame, frameToRefEstimate, level);
 			System.out.println("Min SSD: " + minSSD);
 			
-			System.out.println("IncrementVec: " + Arrays.toString(incrementVec6));
-			System.out.println("Vec6: " + Arrays.toString(SE3.ln(frameToRefEstimate)));
-			//System.out.println("Rotation: " + estimate.getRotationMat());
-			//System.out.println("Translation: " + estimate.getTranslationMat());
 			
-			if (incrementMagnitude < 1e-6 || minSSD < 100) {
-				break;
-			}
-			
-			for (int i=0 ; i<incrementVec6.length ; i++) {
+			//while(true) {
+			for (int iterationLevelCount=0 ; iterationLevelCount<70 ; iterationLevelCount++) {
+				iterationCount++;
+				double incrementMagnitude = Vec.magnitude(incrementVec6);
 				
-				estimateVec6[i] += incrementVec6[i];
-				frameToRefEstimate = SE3.exp(estimateVec6);
+	
+				System.out.println(iterationCount);
+				System.out.println(incrementMagnitude);
+				System.out.println("Min SSD: " + minSSD);
 				
-				double SSD = calculateSSD(referenceFrame, frame, frameToRefEstimate);
-				if (SSD < minSSD) {
-					minSSD = SSD;
-					incrementVec6[i] *= successMultiplier;
-				} else {
-					estimateVec6[i] -= 2*incrementVec6[i];
-					frameToRefEstimate = SE3.exp(estimateVec6);
-					SSD = calculateSSD(referenceFrame, frame, frameToRefEstimate);
-					if (SSD < minSSD) {
-						minSSD = SSD;
-						incrementVec6[i] *= -successMultiplier;
-					} else {
-						estimateVec6[i] += incrementVec6[i];
-						frameToRefEstimate = SE3.exp(estimateVec6);
-						incrementVec6[i] *= failureMultiplier;
-					}
+				System.out.println("IncrementVec: " + Arrays.toString(incrementVec6));
+				System.out.println("Vec6: " + Arrays.toString(SE3.ln(frameToRefEstimate)));
+				//System.out.println("Rotation: " + estimate.getRotationMat());
+				//System.out.println("Translation: " + estimate.getTranslationMat());
+				
+				if (incrementMagnitude < 1e-6 || minSSD < 100) {
+					break;
 				}
 				
-				
+				for (int i=0 ; i<incrementVec6.length ; i++) {
+					
+					estimateVec6[i] += incrementVec6[i];
+					frameToRefEstimate = SE3.exp(estimateVec6);
+					
+					double SSD = calculateSSD(referenceFrame, frame, frameToRefEstimate, level);
+					if (SSD < minSSD) {
+						minSSD = SSD;
+						incrementVec6[i] *= successMultiplier;
+					} else {
+						estimateVec6[i] -= 2*incrementVec6[i];
+						frameToRefEstimate = SE3.exp(estimateVec6);
+						SSD = calculateSSD(referenceFrame, frame, frameToRefEstimate, level);
+						if (SSD < minSSD) {
+							minSSD = SSD;
+							incrementVec6[i] *= -successMultiplier;
+						} else {
+							estimateVec6[i] += incrementVec6[i];
+							frameToRefEstimate = SE3.exp(estimateVec6);
+							incrementVec6[i] *= failureMultiplier;
+						}
+					}
+					
+					
+				}
+	
 			}
-
 		}
 		
 
 		// Test writing 3D point cloud
 		try {
-			referenceFrame.writePointCloudToFile("out1.xyz", referenceFrame.pointCloud,
-					referenceFrame.width(), referenceFrame.height());
+			referenceFrame.writePointCloudToFile("out1.xyz", referenceFrame.pointCloudLvl[0],
+					referenceFrame.width(0), referenceFrame.height(0));
 		} catch (FileNotFoundException | UnsupportedEncodingException e) {
 			e.printStackTrace();
 		}
@@ -97,19 +105,19 @@ public class Tracker {
 
 		jeigen.DenseMatrix rotationMat = frameToRefEstimate.getRotationMat();
 		jeigen.DenseMatrix translationVec = frameToRefEstimate.getTranslationMat();
-		for (int i=0 ; i<referenceFrame.pointCloud.length ; i++) {
+		for (int i=0 ; i<referenceFrame.pointCloudLvl[0].length ; i++) {
 			// Each 3D point
-			jeigen.DenseMatrix point = referenceFrame.pointCloud[i];
+			jeigen.DenseMatrix point = referenceFrame.pointCloudLvl[0][i];
 			
 			// Warp to 2D image by estimate
 			jeigen.DenseMatrix warpedPoint = rotationMat.mmul(point).add(translationVec);
-			referenceFrame.pointCloud[i] = warpedPoint;
+			referenceFrame.pointCloudLvl[0][i] = warpedPoint;
 		}
 		
 		// Test writing 3D point cloud
 		try {
-			referenceFrame.writePointCloudToFile("out2.xyz", referenceFrame.pointCloud,
-					referenceFrame.width(), referenceFrame.height());
+			referenceFrame.writePointCloudToFile("out2.xyz", referenceFrame.pointCloudLvl[0],
+					referenceFrame.width(0), referenceFrame.height(0));
 		} catch (FileNotFoundException | UnsupportedEncodingException e) {
 			e.printStackTrace();
 		}
@@ -123,53 +131,59 @@ public class Tracker {
 	}
 	
 	int count = 0;
-	public double calculateSSD(ReferenceFrame referenceFrame, Frame frame, SE3 frameToRefPose) {
+	public double calculateSSD(ReferenceFrame referenceFrame,
+			Frame frame, SE3 frameToRefPose, int level) {
 		count++;
+		
+		double fx = Constants.fx[level];
+		double fy = Constants.fy[level];
+		double cx = Constants.cx[level];
+		double cy = Constants.cy[level];
 
 		// Get 3D points of reference frame
-		if (referenceFrame.pointCloud == null) {
-			referenceFrame.pointCloud = referenceFrame.createPointCloud(
-					referenceFrame.inverseDepth,
-					referenceFrame.width(), referenceFrame.height());
+		if (referenceFrame.pointCloudLvl[level] == null) {
+			referenceFrame.pointCloudLvl[level] = referenceFrame.createPointCloud(
+					referenceFrame.inverseDepthLvl[level],
+					referenceFrame.width(level), referenceFrame.height(level), level);
 		}
 		
 		// Get rotation, translation matrix
 		jeigen.DenseMatrix rotationMat = frameToRefPose.getRotationMat();
 		jeigen.DenseMatrix translationVec = frameToRefPose.getTranslationMat();
 		
-		Mat debugImage = new Mat(480, 640, CvType.CV_8UC1);
-		byte[] debugArray = new byte[(int) debugImage.total()];
-		debugImage.get(0, 0, debugArray);
+//		Mat debugImage = new Mat(referenceFrame.height(level), referenceFrame.width(level), CvType.CV_8UC1);
+//		byte[] debugArray = new byte[(int) debugImage.total()];
+//		debugImage.get(0, 0, debugArray);
 		
 		
 		// Calculate SSD
 		double SSD = 0;
 		int validPoints = 0;
-		for (int i=0 ; i<referenceFrame.pointCloud.length ; i++) {
+		for (int i=0 ; i<referenceFrame.pointCloudLvl[level].length ; i++) {
 			// Each 3D point
-			jeigen.DenseMatrix point = referenceFrame.pointCloud[i];
+			jeigen.DenseMatrix point = referenceFrame.pointCloudLvl[level][i];
 			
 			// Warp to 2D image by estimate
 			jeigen.DenseMatrix warpedPoint = rotationMat.mmul(point).add(translationVec);
 			
 			// Image points
-			double u = (warpedPoint.get(0, 0)/warpedPoint.get(2, 0))*Constants.fx + Constants.cx;
-			double v = (warpedPoint.get(1, 0)/warpedPoint.get(2, 0))*Constants.fy + Constants.cy;
+			double u = (warpedPoint.get(0, 0)/warpedPoint.get(2, 0))*fx + cx;
+			double v = (warpedPoint.get(1, 0)/warpedPoint.get(2, 0))*fy + cy;
 			
 			// Check image points within bounds
-			if (!(u>1 && v>1 && u<frame.width()-1 && v<frame.height()-1)) {
+			if (!(u>1 && v>1 && u<frame.width(level)-1 && v<frame.height(level)-1)) {
 				continue;
 			}
 			
 			// TODO: Get interpolated value at image points from frame.
 			// just get non-interpolated value for now
 			//float intensity = (int)frame.imageArray[(int)v*frame.width() + (int)u] & 0xFF;
-			float intensity = interpolatedPixel(frame.imageArray, u, v, frame.width());
+			float intensity = interpolatedPixel(frame.imageArrayLvl[level], u, v, frame.width(level));
 
-			debugArray[i] = (byte)intensity;
+			//debugArray[i] = (byte)intensity;
 			
 			// convert signed/unsigned byte
-			float referenceFrameIntensity = (int) referenceFrame.frame.imageArray[i] & 0xFF;
+			float referenceFrameIntensity = (int) referenceFrame.frame.imageArrayLvl[level][i] & 0xFF;
 			
 			// TODO: Change this according to paper, code.
 			float residual = referenceFrameIntensity - intensity;
@@ -180,11 +194,11 @@ public class Tracker {
 			
 		}
 		
-		debugImage.put(0, 0, debugArray);
-		Highgui.imwrite("debugImage"+count+"-"+ SSD + "-" + validPoints + ".jpg", debugImage);
+		//debugImage.put(0, 0, debugArray);
+		//Highgui.imwrite("debugImage"+count+"-"+ SSD + "-" + validPoints + ".jpg", debugImage);
 		
 		// Some condition to make sure there are some valid points.
-		if (validPoints <= frame.width()*frame.height()*0.5) {
+		if (validPoints <= frame.width(level)*frame.height(level)*0.5) {
 			return Double.MAX_VALUE;
 		}
 		
@@ -203,6 +217,9 @@ public class Tracker {
 		
 		// Load OpenCV native library.
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+		
+		// Set Camera parameters
+		Constants.setK(500, 500, 350, 240);
 		
 		
 		// Read image

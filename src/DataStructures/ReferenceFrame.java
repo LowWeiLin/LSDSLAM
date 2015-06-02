@@ -16,12 +16,12 @@ public class ReferenceFrame {
 
 	public Frame frame;
 	
-	public float[] inverseDepth;
-	public float[] inverseDepthVariance;
+	public float[][] inverseDepthLvl = new float[Constants.PYRAMID_LEVELS][];
+	public float[][] inverseDepthVarianceLvl = new float[Constants.PYRAMID_LEVELS][];
 	
 	
-	// Array of vector3
-	public jeigen.DenseMatrix[] pointCloud;
+	// Array of vector3, for each pyramid level.
+	public jeigen.DenseMatrix[][] pointCloudLvl = new jeigen.DenseMatrix[Constants.PYRAMID_LEVELS][];
 	
 	
 	/**
@@ -34,17 +34,19 @@ public class ReferenceFrame {
 	}
 	
 	public void initialize() {
-		int size = (int) frame.image.total();
-		inverseDepth = new float[size];
-		inverseDepthVariance = new float[size];
-		randomizeInverseDepth();
 		
+		for (int i=0 ; i<Constants.PYRAMID_LEVELS ; i++) {
+			int size = (int) frame.imageLvl[i].total();
+			inverseDepthLvl[i] = new float[size];
+			inverseDepthVarianceLvl[i] = new float[size];
+			randomizeInverseDepth(i);
+		}
 	}
 	
-	public void randomizeInverseDepth() {
+	public void randomizeInverseDepth(int level) {
 		// TODO: do random
 		// Set to 1s for now.
-		Arrays.fill(inverseDepth, 1);
+		Arrays.fill(inverseDepthLvl[level], 1);
 		
 		Random rand = new Random();
 		rand.setSeed(System.nanoTime());
@@ -57,13 +59,19 @@ public class ReferenceFrame {
 		// Use tsukuba ground truth as depth.
 		Mat tsukubaGroundTruth = Highgui.imread("test0.jpg");
 		Imgproc.cvtColor(tsukubaGroundTruth, tsukubaGroundTruth, Imgproc.COLOR_RGB2GRAY);
+		
+		// Pyramid down
+		for (int i=0 ; i<level ; i++) {
+			Imgproc.pyrDown(tsukubaGroundTruth, tsukubaGroundTruth);
+		}
+		
 		byte[] data = new byte[(int) tsukubaGroundTruth.total()];
 		tsukubaGroundTruth.get(0, 0, data);
 		for (int i=0 ; i<tsukubaGroundTruth.total() ; i++) {
 			if ((255 - data[i] &0xFF) != 0) {
-				inverseDepth[i] = 1.0f/(float)(255 - data[i] & 0xFF);
+				inverseDepthLvl[level][i] = 1.0f/(float)(255 - data[i] & 0xFF);
 			} else {
-				inverseDepth[i] = 0.5f + rand.nextFloat();
+				inverseDepthLvl[level][i] = 0.5f + rand.nextFloat();
 			}
 		}
 		
@@ -85,7 +93,7 @@ public class ReferenceFrame {
 		
 		
 		
-		Arrays.fill(inverseDepthVariance, Constants.VAR_RANDOM_INIT_INITIAL);//TODO: increase value?
+		Arrays.fill(inverseDepthVarianceLvl[level], Constants.VAR_RANDOM_INIT_INITIAL);//TODO: increase value?
 		
 		
 	}
@@ -93,14 +101,14 @@ public class ReferenceFrame {
 	/**
 	 * Create 3D points from inverse depth values
 	 */
-	public jeigen.DenseMatrix[] createPointCloud(float[] inverseDepth, int width, int height) {
+	public jeigen.DenseMatrix[] createPointCloud(float[] inverseDepth, int width, int height, int level) {
 		
 		jeigen.DenseMatrix[] pointCloud = new jeigen.DenseMatrix[width*height];
 		
-		double fxInv = Constants.fxInv;
-		double fyInv = Constants.fyInv;
-		double cxInv = Constants.cxInv;
-		double cyInv = Constants.cyInv;
+		double fxInv = Constants.fxInv[level];
+		double fyInv = Constants.fyInv[level];
+		double cxInv = Constants.cxInv[level];
+		double cyInv = Constants.cyInv[level];
 		
 		int pixelIndex = 0;
 		for (int y=0 ; y<height ; y++) {
@@ -128,12 +136,20 @@ public class ReferenceFrame {
 		return pointCloud;
 	}
 	
-	public int width() {
-		return frame.width();
+//	public int width() {
+//		return frame.width();
+//	}
+//	
+//	public int height() {
+//		return frame.height();
+//	}
+	
+	public int width(int level) {
+		return frame.width(level);
 	}
 	
-	public int height() {
-		return frame.height();
+	public int height(int level) {
+		return frame.height(level);
 	}
 	
 	public void writePointCloudToFile(String filename, jeigen.DenseMatrix[] pointCloud, int width, int height) throws FileNotFoundException, UnsupportedEncodingException {
