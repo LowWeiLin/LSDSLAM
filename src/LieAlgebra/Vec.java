@@ -117,11 +117,24 @@ public class Vec {
 	
 
 	/**
-	 * Matrix to array
+	 * 3x3 Matrix to array
 	 */
-	public static double[][] toArray(jeigen.DenseMatrix mat) {
+	public static double[][] matToArray(jeigen.DenseMatrix mat) {
 		return new double[][] {{mat.get(0, 0),mat.get(0, 1),mat.get(0, 2)},
    							   {mat.get(1, 0),mat.get(1, 1),mat.get(1, 2)},
 							   {mat.get(2, 0),mat.get(2, 1),mat.get(2, 2)}};
+	}
+	
+	
+	/**
+	 * 6x1 vector to array
+	 */
+	public static double[] vecToArray(jeigen.DenseMatrix vec) {
+		return new double[] {vec.get(0,0),
+							vec.get(1,0),
+							vec.get(2,0),
+							vec.get(3,0),
+							vec.get(4,0),
+							vec.get(5,0)};
 	}
 }

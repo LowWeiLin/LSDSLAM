@@ -132,7 +132,7 @@ public class SO3 {
 		// 3x1 vector
 		double[] result = new double[3];
 		
-		double[][] my_matrix = Vec.toArray(matrix);
+		double[][] my_matrix = Vec.matToArray(matrix);
 		
 		final double cos_angle = (my_matrix[0][0] + my_matrix[1][1] + my_matrix[2][2] - 1.0) * 0.5;
 		result[0] = (my_matrix[2][1]-my_matrix[1][2])/2.0;
@@ -179,6 +179,18 @@ public class SO3 {
 		}
 
 		return result;
+	}
+	
+	public static SO3 inverse(SO3 so3) {
+		SO3 inverse = new SO3(so3.matrix.t());
+		return inverse;
+	}
+	
+	/**
+	 * Right multiply by given SO3
+	 */
+	public void mulEq(SO3 so3) {
+		this.matrix = this.matrix.mmul(so3.matrix);
 	}
 	
 }

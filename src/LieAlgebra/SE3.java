@@ -141,11 +141,10 @@ public class SE3 {
 		
 	}
 	
-	
-	
-	
-	
-	
+	public static SE3 inverse(SE3 se3) {
+		SE3 inverse = new SE3(SO3.inverse(se3.getRotation()), se3.translation.mul(-1));
+		return inverse;
+	}
 	
 	public void setTranslation(double[] vec3) {
 		double[][] translationVec3 = {{vec3[0]},{vec3[1]},{vec3[2]}};
@@ -155,5 +154,13 @@ public class SE3 {
 	public void setTranslation(double x, double y, double z) {
 		double[][] translationVec3 = {{x},{y},{z}};
 		translation = new jeigen.DenseMatrix(translationVec3);
+	}
+	
+	/**
+	 * Right multiply by given SE3
+	 */
+	public void mulEq(SE3 se3) {
+		this.translation = this.translation.add(rotation.matrix.mmul(se3.translation));
+		this.rotation.matrix = this.rotation.matrix.mmul(se3.rotation.matrix);
 	}
 }

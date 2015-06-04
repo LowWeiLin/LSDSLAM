@@ -51,8 +51,8 @@ public class ReferenceFrame {
 		Random rand = new Random();
 		rand.setSeed(System.nanoTime());
 		// Randomize 0.5 - 1.5
-//		for (int i=0 ; i<inverseDepth.length ; i++) {
-//			inverseDepth[i] = 0.5f + rand.nextFloat();
+//		for (int i=0 ; i<inverseDepthLvl[level].length ; i++) {
+//			inverseDepthLvl[level][i] = 0.5f + rand.nextFloat();
 //		}
 		
 		
