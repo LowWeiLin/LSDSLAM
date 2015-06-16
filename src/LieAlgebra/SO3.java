@@ -36,6 +36,10 @@ public class SO3 {
 		set33(mat33);
 	}
 	
+	public SO3(SO3 rotation) {
+		this.matrix = new DenseMatrix(rotation.matrix);
+	}
+
 	// Construct from 3x1 vector, representing axis of rotation, and magnitude representing angle.
 	public void set31(double[] vec3) {
 		set33(exp(vec3));
@@ -132,7 +136,7 @@ public class SO3 {
 		// 3x1 vector
 		double[] result = new double[3];
 		
-		double[][] my_matrix = Vec.matToArray(matrix);
+		double[][] my_matrix = Vec.mat3ToArray(matrix);
 		
 		final double cos_angle = (my_matrix[0][0] + my_matrix[1][1] + my_matrix[2][2] - 1.0) * 0.5;
 		result[0] = (my_matrix[2][1]-my_matrix[1][2])/2.0;

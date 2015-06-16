@@ -11,7 +11,7 @@ import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
 
 import DataStructures.Frame;
-import DataStructures.ReferenceFrame;
+import DataStructures.TrackingReference;
 import LieAlgebra.SE3;
 import LieAlgebra.Vec;
 import Utils.Constants;
@@ -94,7 +94,7 @@ public class Tracker {
 	 * Estimates the pose between a reference frame and a frame.
 	 */
 	@SuppressWarnings("static-access")
-	SE3 trackFrame(ReferenceFrame referenceFrame, Frame frame, SE3 frameToRefInitialEstimate) {
+	SE3 trackFrame(TrackingReference referenceFrame, Frame frame, SE3 frameToRefInitialEstimate) {
 
 		// Initialize
 		initialize(frame.width(0), frame.height(0));
@@ -120,7 +120,7 @@ public class Tracker {
 			// Generate 3D points of reference frame for the level, if not already done.
 			if (referenceFrame.pointCloudLvl[level] == null) {
 				referenceFrame.pointCloudLvl[level] = referenceFrame.createPointCloud(
-						referenceFrame.inverseDepthLvl[level],
+						referenceFrame.keyframe.inverseDepthLvl[level],
 						referenceFrame.width(level), referenceFrame.height(level), level);
 			}
 			
@@ -155,9 +155,9 @@ public class Tracker {
 					jeigen.DenseMatrix inc = calcIncrement(ls, LM_lambda);
 
 					// Apply increment
-					// TODO: remove division
-					SE3 newRefToFrame = SE3.exp(Vec.vecToArray(inc.div(5)));
+					SE3 newRefToFrame = SE3.exp(Vec.vec6ToArray(inc));
 					newRefToFrame.mulEq(refToFrame);
+					
 					
 					// Re-evaluate residual
 					calculateResidualAndBuffers(referenceFrame, frame, newRefToFrame, level);
@@ -178,10 +178,9 @@ public class Tracker {
 						// Accept increment
 						refToFrame = newRefToFrame;
 						
-
-						System.out.println("inc:" + Arrays.toString(Vec.vecToArray(inc)) + LM_lambda);
-						System.out.println("vec6:" + Arrays.toString(SE3.ln(newRefToFrame)));
-						System.out.println("\n\n");
+//						System.out.println("inc:" + Arrays.toString(Vec.vecToArray(inc)) + LM_lambda);
+//						System.out.println("vec6:" + Arrays.toString(SE3.ln(newRefToFrame)));
+//						System.out.println("\n\n");
 						
 						// Check for convergence
 						if (error / lastError > convergenceEps[level]) {
@@ -201,7 +200,7 @@ public class Tracker {
 						// Break!
 						break;
 					} else {
-						double[] incVec = Vec.vecToArray(inc);
+						double[] incVec = Vec.vec6ToArray(inc);
 						double incVecDot = Vec.dot(incVec, incVec);
 						if(!(incVecDot > stepSizeMin[level])) {
 							// Stop iteration
@@ -285,7 +284,7 @@ public class Tracker {
 	 * @return sum of un-weighted residuals, divided by good pixel count.
 	 * 
 	 */
-	public float calculateResidualAndBuffers(ReferenceFrame referenceFrame,
+	public float calculateResidualAndBuffers(TrackingReference referenceFrame,
 			Frame frame, SE3 frameToRefPose, int level) {
 		calculateResidualAndBuffersCount++;
 		
@@ -298,10 +297,10 @@ public class Tracker {
 		jeigen.DenseMatrix rotationMat = frameToRefPose.getRotationMat();
 		jeigen.DenseMatrix translationVec = frameToRefPose.getTranslationMat();
 
-		// For drawing image for debugging.
-		Mat debugImage = new Mat(referenceFrame.height(level), referenceFrame.width(level), CvType.CV_8UC1);
-		byte[] debugArray = new byte[(int) debugImage.total()];
-		debugImage.get(0, 0, debugArray);
+		// TODO: For drawing image for debugging.
+//		Mat debugImage = new Mat(referenceFrame.height(level), referenceFrame.width(level), CvType.CV_8UC1);
+//		byte[] debugArray = new byte[(int) debugImage.total()];
+//		debugImage.get(0, 0, debugArray);
 		
 		
 		float sumResUnweighted = 0;
@@ -335,10 +334,10 @@ public class Tracker {
 			float interpolatedGradientY = interpolatedValue(frame.imageGradientYArrayLvl[level], u, v, frame.width(level));
 			
 			
-			// For drawing image for debugging.
-			debugArray[i] = (byte)interpolatedIntensity;
+			// TODO: For drawing image for debugging.
+//			debugArray[i] = (byte)interpolatedIntensity;
 			
-			float referenceFrameIntensity = (int) referenceFrame.frame.imageArrayLvl[level][i];
+			float referenceFrameIntensity = (int) referenceFrame.keyframe.imageArrayLvl[level][i];
 			
 			//
 			float c1 = referenceFrameIntensity;
@@ -355,7 +354,7 @@ public class Tracker {
 			this.bufWarpedY[warpedCount] = (float) warpedPoint.get(1, 0);
 			this.bufWarpedZ[warpedCount] = (float) warpedPoint.get(2, 0);
 			this.bufInvDepth[warpedCount] = (float) (1.0f / point.get(2, 0));
-			this.bufInvDepthVariance[warpedCount] = referenceFrame.inverseDepthVarianceLvl[level][i];
+			this.bufInvDepthVariance[warpedCount] = referenceFrame.keyframe.inverseDepthVarianceLvl[level][i];
 			
 			// Increase warpCount
 			warpedCount += 1;
@@ -377,9 +376,9 @@ public class Tracker {
 			
 		}
 		
-		// For drawing image for debugging.
-		debugImage.put(0, 0, debugArray);
-		Highgui.imwrite("debugImage"+calculateResidualAndBuffersCount+"-"+ sumResUnweighted/goodCount + ".jpg", debugImage);
+		// TODO: For drawing image for debugging.
+//		debugImage.put(0, 0, debugArray);
+//		Highgui.imwrite("debugImage"+calculateResidualAndBuffersCount+"-"+ sumResUnweighted/goodCount + ".jpg", debugImage);
 		
 		return sumResUnweighted / goodCount;
 	}
@@ -500,12 +499,14 @@ public class Tracker {
 		
 		Frame frame1 = new Frame(image1);
 		Frame frame2 = new Frame(image2);
-		ReferenceFrame refFrame = new ReferenceFrame(frame1);
+		TrackingReference refFrame = new TrackingReference(frame1);
 		
 		
 		// Track frame
 		Tracker tracker = new Tracker();
-		tracker.trackFrame(refFrame, frame2, SE3.exp(new double[]{0,0,0,0,0,0}));
+		SE3 se3 = tracker.trackFrame(refFrame, frame2, SE3.exp(new double[]{0,0,0,0,0,0}));
+		
+		
 		
 	}
 	

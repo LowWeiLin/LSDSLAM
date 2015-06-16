@@ -16,6 +16,18 @@ public class Constants {
 	public static final float MAX_DIFF_CONSTANT = (40.0f*40.0f);
 	public static final float MAX_DIFF_GRAD_MULT = (0.5f*0.5f);
 	
+	public static final float MIN_USE_GRAD = 5; // TODO: setting, not constant.
+	public static final float MIN_ABS_GRAD_CREATE = MIN_USE_GRAD;
+	
+	
+	// this is the distance of the sample points used for the stereo descriptor.
+	public static final float GRADIENT_SAMPLE_DIST = 1.0f;
+	
+	// ============== initial stereo pixel selection ======================
+	public static final float MIN_EPL_GRAD_SQUARED = (2.0f*2.0f);
+	public static final float MIN_EPL_LENGTH_SQUARED = (1.0f*1.0f);
+	public static final float MIN_EPL_ANGLE_SQUARED = (0.3f*0.3f);
+	
 	
 	
 	

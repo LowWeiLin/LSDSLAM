@@ -2,6 +2,8 @@ package LieAlgebra;
 
 import java.util.Arrays;
 
+import jeigen.DenseMatrix;
+
 /**
  *	Represent a three-dimensional Euclidean transformation (a rotation and a translation).
  *
@@ -35,6 +37,11 @@ public class SE3 {
 		this.translation = translation;
 	}
 	
+	public SE3(SE3 se3) {
+		this.translation = new DenseMatrix(se3.translation);
+		this.rotation = new SO3(se3.rotation);
+	}
+
 	public SO3 getRotation() {
 		return rotation;
 	}
