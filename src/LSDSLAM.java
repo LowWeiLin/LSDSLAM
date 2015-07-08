@@ -1,3 +1,6 @@
+import java.util.Deque;
+import java.util.LinkedList;
+
 import org.opencv.core.Mat;
 
 import DataStructures.Frame;
@@ -21,6 +24,12 @@ public class LSDSLAM {
 	TrackingReference mappingTrackingReference;
 	KeyFrameGraph keyFrameGraph;
 	
+	
+
+	// PUSHED in tracking, READ & CLEARED in mapping
+	Deque<Frame> unmappedTrackedFrames = new LinkedList<Frame>();
+	
+	
 	public LSDSLAM() {
 
 		trackingReference = new TrackingReference();
@@ -39,8 +48,7 @@ public class LSDSLAM {
 		// Initialize map
 		map.initializeRandomly(currentKeyFrame);
 		
-		// TODO: KeyFrame graph
-		//keyFrameGraph.addFrame(currentKeyFrame);
+		keyFrameGraph.addFrame(currentKeyFrame);
 
 		//TODO:
 //		if(doSlam) {
@@ -116,15 +124,15 @@ public class LSDSLAM {
 			manualTrackingLossIndicated = false;
 			return;
 		}
+		 
+		 */
 
-
-
-		keyFrameGraph->addFrame(trackingNewFrame.get());
-		*/
+		keyFrameGraph.addFrame(trackingNewFrame);
+		
 
 
 		/*
-		// Keyframe selection
+		// TODO: Keyframe selection
 		latestTrackedFrame = trackingNewFrame;
 		if (!my_createNewKeyframe && currentKeyFrame->numMappedOnThisTotal > MIN_NUM_MAPPED)
 		{
@@ -146,35 +154,114 @@ public class LSDSLAM {
 			{
 				if(enablePrintDebugInfo && printKeyframeSelectionInfo)
 					printf("SKIPPD %d on %d! dist %.3f + usage %.3f = %.3f > 1\n",trackingNewFrame->id(),trackingNewFrame->getTrackingParent()->id(), dist.dot(dist), tracker->pointUsage, trackableKeyFrameSearch->getRefFrameScore(dist.dot(dist), tracker->pointUsage));
-
 			}
-		}
-
-
-		unmappedTrackedFramesMutex.lock();
-		if(unmappedTrackedFrames.size() < 50 || (unmappedTrackedFrames.size() < 100 && trackingNewFrame->getTrackingParent()->numMappedOnThisTotal < 10))
-			unmappedTrackedFrames.push_back(trackingNewFrame);
-		unmappedTrackedFramesSignal.notify_one();
-		unmappedTrackedFramesMutex.unlock();
-
-		// implement blocking
-		if(blockUntilMapped && trackingIsGood)
-		{
-			boost::unique_lock<boost::mutex> lock(newFrameMappedMutex);
-			while(unmappedTrackedFrames.size() > 0)
-			{
-				//printf("TRACKING IS BLOCKING, waiting for %d frames to finish mapping.\n", (int)unmappedTrackedFrames.size());
-				newFrameMappedSignal.wait(lock);
-			}
-			lock.unlock();
 		}
 		*/
+
+		// Push into deque for mapping
+		if(unmappedTrackedFrames.size() < 50 || 
+				(unmappedTrackedFrames.size() < 100 &&
+				trackingNewFrame.getTrackingParent().numMappedOnThisTotal < 10)) {
+			
+			unmappedTrackedFrames.push(trackingNewFrame);
+		}
+		
+		// TODO: block till mapping is done - just do sequentially for now.
 		
 		
 	}
 	
-	public void doMappingIteration() {
+	public boolean doMappingIteration() {
+		System.out.println("Mapping!");
+		if(currentKeyFrame == null) {
+			System.err.println("doMappingIteration: currentKeyFrame is null!");
+			return false;
+		}
+
+		//TODO:
+		boolean trackingIsGood = true;
 		
+		// set mappingFrame
+		if(trackingIsGood) {
+			System.out.println("Tracking good!");
+			if (createNewKeyFrame) {
+				System.out.println("doMappingIteration: create new keyframe");
+				// create new key frame
+				//finishCurrentKeyframe();
+				//changeKeyframe(false, true, 1.0f);
+			} else {
+				System.out.println("doMappingIteration: update keyframe");
+				// ***Update key frame here
+				boolean didSomething = updateKeyframe();
+
+				if(!didSomething) {
+					return false;
+				}
+			}
+			return true;
+		} else { // Tracking is not good
+			System.err.println("Tracking bad!");
+			/*
+			
+			// invalidate map if it was valid.
+			if(map.isValid()) {
+				if(currentKeyFrame.numMappedOnThisTotal >= MIN_NUM_MAPPED) {
+					//finishCurrentKeyframe();
+				} else {
+					//discardCurrentKeyframe();
+				}
+				map.invalidate();
+			}
+
+			// start relocalizer if it isnt running already
+			if(!relocalizer.isRunning)
+				relocalizer.start(keyFrameGraph->keyframesAll);
+
+			// did we find a frame to relocalize with?
+			if(relocalizer.waitResult(50))
+				takeRelocalizeResult();
+
+			*/
+			return true;
+		}
+	}
+	
+
+	// Updates key frame with measurements from a new frame.
+	public boolean updateKeyframe() {
+		Deque<Frame> references = new LinkedList<Frame>();
+
+		// remove frames that have a different tracking parent.
+		while(unmappedTrackedFrames.size() > 0 &&
+				(!unmappedTrackedFrames.peekFirst().hasTrackingParent() ||
+				unmappedTrackedFrames.peekFirst().getTrackingParent() != currentKeyFrame)) {
+			
+			unmappedTrackedFrames.pop();//.clear_refPixelWasGood();
+		}
+
+		// clone list
+		if(unmappedTrackedFrames.size() > 0) {
+			// Copy from unmappedTrackedFrames to references
+			references.addAll(unmappedTrackedFrames);
+			
+			Frame popped = unmappedTrackedFrames.pop();
+
+			// ***DO the update here
+			// references - list of frames to map
+			map.updateKeyframe(references);
+
+			//popped->clear_refPixelWasGood();
+			references.clear();
+		} else {
+			return false;
+		}
+
+
+
+		//if(outputWrapper != 0 && continuousPCOutput && currentKeyFrame != 0)
+		//	outputWrapper->publishKeyframe(currentKeyFrame.get());
+
+		return true;
 	}
 	
 }

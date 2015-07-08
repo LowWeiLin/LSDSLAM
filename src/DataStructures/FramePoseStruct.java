@@ -5,13 +5,13 @@ import LieAlgebra.SIM3;
 public class FramePoseStruct {
 
 	// parent, the frame originally tracked on. never changes.
-	FramePoseStruct trackingParent;
+	public FramePoseStruct trackingParent;
 
 	// set initially as tracking result (then it's a SE(3)),
 	// and is changed only once, when the frame becomes a KF (->rescale).
-	SIM3 thisToParent_raw;
+	public SIM3 thisToParent_raw;
 
-	int frameID;
+	public int frameID;
 	Frame frame;
 
 	// whether this poseStruct is registered in the Graph. if true MEMORY WILL BE HANDLED BY GRAPH
@@ -49,7 +49,7 @@ public class FramePoseStruct {
 		isOptimized = false;
 		thisToParent_raw = camToWorld = camToWorld_new = new SIM3();
 		this.frame = frame;
-		// TODO: frameID = frame.id();
+		frameID = frame.id();
 		trackingParent = null;
 		isRegisteredToGraph = false;
 		hasUnmergedPose = false;

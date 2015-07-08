@@ -103,8 +103,8 @@ public class Tracker {
 		SE3 frameToRefEstimate = frameToRefInitialEstimate;
 		SE3 refToFrame = SE3.inverse(frameToRefEstimate);
 		
-		System.out.println(Arrays.toString(SE3.ln(frameToRefEstimate)));
-		System.out.println(Arrays.toString(SE3.ln(refToFrame)));
+		//System.out.println(Arrays.toString(SE3.ln(frameToRefEstimate)));
+		//System.out.println(Arrays.toString(SE3.ln(refToFrame)));
 		
 		// LS
 		LGS6 ls = new LGS6();
@@ -119,9 +119,12 @@ public class Tracker {
 
 			// Generate 3D points of reference frame for the level, if not already done.
 			if (referenceFrame.pointCloudLvl[level] == null) {
-				referenceFrame.pointCloudLvl[level] = referenceFrame.createPointCloud(
+				referenceFrame.pointCloudLvl[level] = 
+						referenceFrame.createPointCloud(
 						referenceFrame.keyframe.inverseDepthLvl[level],
-						referenceFrame.width(level), referenceFrame.height(level), level);
+						referenceFrame.keyframe.inverseDepthVarianceLvl[level],
+						referenceFrame.width(level), referenceFrame.height(level),
+						level);
 			}
 			
 			
@@ -141,9 +144,10 @@ public class Tracker {
 			
 			float LM_lambda = this.lambdaInitial[level];
 
+			//System.out.println("L" + level + " - " + "0" + " " + lastError);
+			
 			// For a maximum number of iterations
 			for (int iteration=0 ; iteration < maxItsPerLvl[level] ; iteration++) {
-				System.out.println("L" + level + " - " + iteration + " w/h " + frame.width(level)+"/"+frame.height(level));
 				// Calculate/update LS
 				calculateWarpUpdate(ls);
 				
@@ -173,7 +177,6 @@ public class Tracker {
 					
 					// Calculate weighted residual/error
 					float error = calculateWeightsAndResidual(newRefToFrame);
-					
 					if (error < lastError) {
 						// Accept increment
 						refToFrame = newRefToFrame;
@@ -186,6 +189,7 @@ public class Tracker {
 						if (error / lastError > convergenceEps[level]) {
 							// Stop iteration
 							iteration = maxItsPerLvl[level];
+							System.out.println("Converged");
 						}
 						lastError = error;
 						lastResidual = error;
@@ -196,7 +200,6 @@ public class Tracker {
 						} else {
 							LM_lambda *= lambdaSuccessFac;
 						}
-						
 						// Break!
 						break;
 					} else {
@@ -205,6 +208,7 @@ public class Tracker {
 						if(!(incVecDot > stepSizeMin[level])) {
 							// Stop iteration
 							iteration = maxItsPerLvl[level];
+							System.out.println("Step size below min");
 							break;
 						}
 						
@@ -217,7 +221,8 @@ public class Tracker {
 					}
 					
 				}
-				
+
+				//System.out.println("L" + level + " - " + iteration + " " + lastError);
 			}
 			
 			
@@ -225,12 +230,12 @@ public class Tracker {
 		
 
 		// Test writing 3D point cloud
-		try {
-			referenceFrame.writePointCloudToFile("out1.xyz", referenceFrame.pointCloudLvl[0],
-					referenceFrame.width(0), referenceFrame.height(0));
-		} catch (FileNotFoundException | UnsupportedEncodingException e) {
-			e.printStackTrace();
-		}
+//		try {
+//			referenceFrame.writePointCloudToFile("out1.xyz", referenceFrame.pointCloudLvl[0],
+//					referenceFrame.width(0), referenceFrame.height(0));
+//		} catch (FileNotFoundException | UnsupportedEncodingException e) {
+//			e.printStackTrace();
+//		}
 		
 
 		jeigen.DenseMatrix rotationMat = refToFrame.getRotationMat();
@@ -239,18 +244,23 @@ public class Tracker {
 			// Each 3D point
 			jeigen.DenseMatrix point = referenceFrame.pointCloudLvl[0][i];
 			
+			// Skip if point is not valid
+			if (point == null) {
+				continue;
+			}
+			
 			// Warp to 2D image by estimate
 			jeigen.DenseMatrix warpedPoint = rotationMat.mmul(point).add(translationVec);
 			referenceFrame.pointCloudLvl[0][i] = warpedPoint;
 		}
 		
 		// Test writing 3D point cloud
-		try {
-			referenceFrame.writePointCloudToFile("out2.xyz", referenceFrame.pointCloudLvl[0],
-					referenceFrame.width(0), referenceFrame.height(0));
-		} catch (FileNotFoundException | UnsupportedEncodingException e) {
-			e.printStackTrace();
-		}
+//		try {
+//			referenceFrame.writePointCloudToFile("out2.xyz", referenceFrame.pointCloudLvl[0],
+//					referenceFrame.width(0), referenceFrame.height(0));
+//		} catch (FileNotFoundException | UnsupportedEncodingException e) {
+//			e.printStackTrace();
+//		}
 		
 		
 		System.out.println("Vec6: " + Arrays.toString(SE3.ln(refToFrame)));
@@ -310,9 +320,16 @@ public class Tracker {
 		
 		warpedCount = 0;
 		
+		// For each point in point cloud
 		for (int i=0 ; i<referenceFrame.pointCloudLvl[level].length ; i++) {
-			// Each 3D point
+			
+			// 3D position
 			jeigen.DenseMatrix point = referenceFrame.pointCloudLvl[level][i];
+			
+			// Skip if point is not valid
+			if (point == null) {
+				continue;
+			}
 			
 			// Warp to 2D image by estimate
 			jeigen.DenseMatrix warpedPoint = rotationMat.mmul(point).add(translationVec);
@@ -355,6 +372,7 @@ public class Tracker {
 			this.bufWarpedZ[warpedCount] = (float) warpedPoint.get(2, 0);
 			this.bufInvDepth[warpedCount] = (float) (1.0f / point.get(2, 0));
 			this.bufInvDepthVariance[warpedCount] = referenceFrame.keyframe.inverseDepthVarianceLvl[level][i];
+			
 			
 			// Increase warpCount
 			warpedCount += 1;
@@ -419,7 +437,7 @@ public class Tracker {
 
 			float wh = Math.abs(weighted_rp < (huberD/2f) ?
 					1 : (huberD/2f) / weighted_rp);
-
+			
 			sumRes += wh * w_p * rp*rp;
 			
 			// Set weight into buffer

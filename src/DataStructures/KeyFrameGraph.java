@@ -7,16 +7,16 @@ import LieAlgebra.SIM3;
 public class KeyFrameGraph {
 
 
-	int totalPoints;
-	int totalEdges;
-	int totalVertices;
+	public int totalPoints;
+	public int totalEdges;
+	public int totalVertices;
 
 
 	//=========================== Keyframe & Posen Lists & Maps ====================================
 
 	// contains ALL keyframes, as soon as they are "finished".
 	// does NOT yet contain the keyframe that is currently being created.
-	ArrayList<Frame> keyframesAll;
+	public ArrayList<Frame> keyframesAll;
 
 
 	/** Maps frame ids to keyframes. Contains ALL Keyframes allocated, including the one that currently being created. */
@@ -33,7 +33,7 @@ public class KeyFrameGraph {
 	// contains ALL frame poses, chronologically, as soon as they are tracked.
 	// the corresponding frame may have been removed / deleted in the meantime.
 	// these are the ones that are also referenced by the corresponding Frame / Keyframe object
-	//std::vector<FramePoseStruct*, Eigen::aligned_allocator<FramePoseStruct*> > allFramePoses;
+	public ArrayList<FramePoseStruct> allFramePoses =  new ArrayList<FramePoseStruct>();
 
 
 	// contains all keyframes in graph, in some arbitrary (random) order. if a frame is re-tracked,
@@ -48,10 +48,17 @@ public class KeyFrameGraph {
 	//std::vector< Frame*, Eigen::aligned_allocator<Frame*> > newKeyframesBuffer;
 	//std::vector< KFConstraintStruct*, Eigen::aligned_allocator<FramePoseStruct*> > newEdgeBuffer;
 
-	int nextEdgeId;
+	public int nextEdgeId;
 
 	
+
+	public void addFrame(Frame frame) {
 	
+		frame.pose.isRegisteredToGraph = true;
+		FramePoseStruct pose = frame.pose;
+		allFramePoses.add(pose);
+		
+	}
 	
 	
 }

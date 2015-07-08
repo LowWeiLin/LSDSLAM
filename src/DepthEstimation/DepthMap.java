@@ -1,6 +1,7 @@
 package DepthEstimation;
 
 import java.util.Deque;
+import java.util.List;
 import java.util.Random;
 
 import Utils.Constants;
@@ -22,6 +23,14 @@ public class DepthMap {
 	
 	Frame activeKeyFrame;
 	boolean activeKeyFrameIsReactivated;
+	
+	
+
+	Frame oldest_referenceFrame;
+	Frame newest_referenceFrame;
+	List<Frame> referenceFrameByID;
+	int referenceFrameByID_offset;
+	
 	
 	public DepthMap(int w, int h) {
 		width = w;
@@ -50,10 +59,28 @@ public class DepthMap {
 	}
 
 	public void reset() {
+		if (otherDepthMap == null) {
+			otherDepthMap = new DepthMapPixelHypothesis[width*height];
+		}
+		if (currentDepthMap == null) {
+			currentDepthMap = new DepthMapPixelHypothesis[width*height];
+		}
+		
 		for (int i=0 ; i<width*height ; i++) {
+			if (otherDepthMap[i] == null) {
+				otherDepthMap[i] = new DepthMapPixelHypothesis();
+			}
+			if (currentDepthMap[i] == null) {
+				currentDepthMap[i] = new DepthMapPixelHypothesis();
+			}
+			
 			otherDepthMap[i].isValid = false;
 			currentDepthMap[i].isValid = false;
 		}
+	}
+	
+	public boolean isValid() {
+		return activeKeyFrame != null;
 	}
 	
 	public void initializeRandomly(Frame newFrame) {
@@ -88,6 +115,229 @@ public class DepthMap {
 	}
 	
 	/**
+	 * Updates depth map with observations from deque of frames
+	 */
+	public void updateKeyframe(Deque<Frame> referenceFrames) {
+		assert(isValid());
+
+		// Get oldest/newest frames
+		oldest_referenceFrame = referenceFrames.peekFirst();
+		newest_referenceFrame = referenceFrames.peekLast();
+
+		referenceFrameByID.clear();
+		referenceFrameByID_offset = oldest_referenceFrame.id();
+
+		// For each frame
+		for(Frame frame : referenceFrames) {
+			
+			//Checks that tracking parent is valid
+			assert(frame.hasTrackingParent());
+			if(frame.getTrackingParent() != activeKeyFrame) {
+				System.out.printf("WARNING: updating frame %d with %d,"
+						+ " which was tracked on a different frame (%d)."
+						+ "\nWhile this should work, it is not recommended.",
+						activeKeyFrame.id(), frame.id(),
+						frame.getTrackingParent().id());
+			}
+
+			SIM3 refToKf;
+			// Get SIM3 from frame to keyframe
+			if(frame.pose.trackingParent.frameID == activeKeyFrame.id()) {
+				refToKf = frame.pose.thisToParent_raw;
+			} else {
+				refToKf = activeKeyFrame.getScaledCamToWorld().inverse().mul(frame.getScaledCamToWorld());
+			}
+			
+			// Prepare for stereo ??
+			// prepare frame for stereo with keyframe, SE3, K, level
+			frame.prepareForStereoWith(activeKeyFrame, refToKf, 0);
+
+			// TODO: ?? push what?
+//			while((int)referenceFrameByID.size() + referenceFrameByID_offset <= frame->id()) {
+//				referenceFrameByID.add(frame);
+//			}
+		}
+
+		
+//		if(plotStereoImages)
+//		{
+//			cv::Mat keyFrameImage(activeKeyFrame->height(), activeKeyFrame->width(), CV_32F, const_cast<float*>(activeKeyFrameImageData));
+//			keyFrameImage.convertTo(debugImageHypothesisHandling, CV_8UC1);
+//			cv::cvtColor(debugImageHypothesisHandling, debugImageHypothesisHandling, CV_GRAY2RGB);
+//
+//			cv::Mat oldest_refImage(oldest_referenceFrame->height(), oldest_referenceFrame->width(), CV_32F, const_cast<float*>(oldest_referenceFrame->image(0)));
+//			cv::Mat newest_refImage(newest_referenceFrame->height(), newest_referenceFrame->width(), CV_32F, const_cast<float*>(newest_referenceFrame->image(0)));
+//			cv::Mat rfimg = 0.5f*oldest_refImage + 0.5f*newest_refImage;
+//			rfimg.convertTo(debugImageStereoLines, CV_8UC1);
+//			cv::cvtColor(debugImageStereoLines, debugImageStereoLines, CV_GRAY2RGB);
+//		}
+
+		//*** OBSERVE DEPTH HERE
+		observeDepth();
+		//***
+
+
+		// Regularize, fill holes?
+		// TODO:
+		//regularizeDepthMapFillHoles();
+
+		// Regularize?
+		// TODO:
+		//regularizeDepthMap(false, VAL_SUM_MIN_FOR_KEEP);
+		
+		// Update depth in keyframe
+		if(!activeKeyFrame.depthHasBeenUpdatedFlag) {
+			// Update keyframe with updated depth?
+			activeKeyFrame.setDepth(currentDepthMap);
+		}
+
+		activeKeyFrame.numMappedOnThis++;
+		activeKeyFrame.numMappedOnThisTotal++;
+
+	}
+	
+	/**
+	 * ObserveDepth
+	 */
+	void observeDepth() {
+		// observeDepthRow in a multithreaded way.
+		//threadReducer.reduce(boost::bind(&DepthMap::observeDepthRow, this, _1, _2, _3),
+		//						3, height-3, 10);
+
+		// TODO: make multithreaded
+		observeDepthRow(3, height-3);
+		
+	}
+	
+	/**
+	 * ObserveDepth for specified rows
+	 * @param yMin
+	 * @param yMax
+	 */
+	void observeDepthRow(int yMin, int yMax) {
+		float[] keyFrameMaxGradBuf = activeKeyFrame.imageGradientMaxArrayLvl[0];
+
+		int successes = 0;
+
+		// For each row assigned
+		for(int y=yMin;y<yMax; y++) {
+			// For x 3 to width-3
+			for(int x=3;x<width-3;x++) {
+
+				//
+				// For each pixel
+				//
+
+				int idx = x+y*width;
+				DepthMapPixelHypothesis target = currentDepthMap[idx];
+				boolean hasHypothesis = target.isValid;
+
+				// ======== 1. check absolute grad =========
+				if(hasHypothesis && keyFrameMaxGradBuf[idx] < 
+						Constants.MIN_ABS_GRAD_DECREASE) {
+					target.isValid = false;
+					continue;
+				}
+
+				if(keyFrameMaxGradBuf[idx] < Constants.MIN_ABS_GRAD_CREATE ||
+						target.blacklisted < Constants.MIN_BLACKLIST) {
+					continue;
+				}
+
+				// Gradient is significant, pixel not blacklisted
+				boolean success = false;
+				if(!hasHypothesis) {
+					// First time
+					success = observeDepthCreate(x, y, idx);
+				} else {
+					// Observe depth
+					// TODO: ***
+					//success = observeDepthUpdate(x, y, idx, keyFrameMaxGradBuf);
+				}
+				if(success) {
+					successes++;
+				}
+			}
+		}
+	}
+	
+	boolean observeDepthCreate(int x, int y, int idx) {
+		DepthMapPixelHypothesis target = currentDepthMap[idx];
+
+		// ???
+		// What is activeKeyFrameIsReactivated?
+		// Key frame was used before?
+		Frame refFrame = activeKeyFrameIsReactivated ? 
+				newest_referenceFrame : oldest_referenceFrame;
+
+		// Frame tracked against activeKeyFrame?
+		if(refFrame.getTrackingParent() == activeKeyFrame) {
+			/*
+			//TODO: implement this
+			boolean wasGoodDuringTracking = refFrame.refPixelWasGoodNoCreate();
+
+			// Check if pixel is good during tracking?
+			if(wasGoodDuringTracking != false &&
+			 !wasGoodDuringTracking[
+			 	(x >> Constants.SE3TRACKING_MIN_LEVEL) + 
+			 	(width >> Constants.SE3TRACKING_MIN_LEVEL)*(y >> Constants.SE3TRACKING_MIN_LEVEL)])
+			{
+				return false;
+			}
+			*/
+		}
+
+
+		// Get epipolar line??
+		float epx, epy;
+		// x, y pixel coordinate, refFrame
+		float[] epl = makeAndCheckEPL(x, y, refFrame);
+		
+		if(epl == null) {
+			return false;
+		} else {
+			epx = epl[0];
+			epy = epl[1];
+		}
+
+		float new_u = x;
+		float new_v = y;
+		float result_idepth = 0;
+		float result_var = 0;
+		float result_eplLength = 0;
+		
+		// Do line stereo, get error, ^ results
+		float error = doLineStereo(
+				new_u, new_v, epx, epy,
+				0.0f, 1.0f, 1.0f/Constants.MIN_DEPTH,
+				refFrame, refFrame.imageArrayLvl[0],
+				result_idepth, result_var, result_eplLength);
+
+		if(error == -3 || error == -2) {
+			target.blacklisted--;
+		}
+
+		if(error < 0 || result_var > Constants.MAX_VAR) {
+			return false;
+		}
+		
+		result_idepth = (float) UNZERO(result_idepth);
+
+		// add hypothesis
+		// Set/change the hypothesis
+		target = new DepthMapPixelHypothesis(
+				result_idepth,
+				result_var,
+				Constants.VALIDITY_COUNTER_INITIAL_OBSERVE);
+
+		//if(plotStereoImages)
+		//	debugImageHypothesisHandling.at<cv::Vec3b>(y, x) = cv::Vec3b(255,255,255); // white for GOT CREATED
+
+		return true;
+	}
+	
+
+	/**
 	 * Return null if failed, return float[] {epx, epy} if found.
 	 * */
 	public float[] makeAndCheckEPL(int x, int y, Frame ref) {
@@ -117,9 +367,6 @@ public class DepthMap {
 
 
 		// ===== check epl-grad magnitude ======
-//		float gx = activeKeyFrameImageData[idx+1] - activeKeyFrameImageData[idx-1];
-//		float gy = activeKeyFrameImageData[idx+width] - activeKeyFrameImageData[idx-width];
-//		float eplGradSquared = gx * epx + gy * epy;
 		
 		float gx = activeKeyFrame.imageGradientXArrayLvl[0][idx];
 		float gy = activeKeyFrame.imageGradientYArrayLvl[0][idx];
@@ -145,123 +392,20 @@ public class DepthMap {
 
 		return new float[] {pepx, pepy};
 	}
-	
-/*
-	boolean observeDepthCreate(int x, int y, int idx) {
-		DepthMapPixelHypothesis target = currentDepthMap[idx];
-	
-		Frame refFrame = activeKeyFrameIsReactivated ? newest_referenceFrame : oldest_referenceFrame;
-	
-		if(refFrame->getTrackingParent() == activeKeyFrame)
-		{
-			bool* wasGoodDuringTracking = refFrame->refPixelWasGoodNoCreate();
-			if(wasGoodDuringTracking != 0 && !wasGoodDuringTracking[(x >> SE3TRACKING_MIN_LEVEL) + (width >> SE3TRACKING_MIN_LEVEL)*(y >> SE3TRACKING_MIN_LEVEL)])
-			{
-				return false;
-			}
-		}
-	
-	
-		// Get epipolar line??
-		float epx, epy;
-		// x, y pixel coordinate, refFrame
-		float[] epl = makeAndCheckEPL(x, y, refFrame);
-		boolean isGood = (epl != null);
-	
-	
-		if(!isGood) return false;
-	
-	
-		float new_u = x;
-		float new_v = y;
-		float result_idepth, result_var, result_eplLength;
-		// Do line stereo, get error, ^ results
-		float error = doLineStereo(
-				new_u,new_v,epx,epy,
-				0.0f, 1.0f, 1.0f/MIN_DEPTH,
-				refFrame, refFrame->image(0),
-				result_idepth, result_var, result_eplLength, stats);
-	
-		if(error == -3 || error == -2)
-		{
-			target->blacklisted--;
-		}
-	
-		if(error < 0 || result_var > MAX_VAR)
-			return false;
-		
-		result_idepth = UNZERO(result_idepth);
-	
-		// add hypothesis
-		// Set/change the hypothesis
-		*target = DepthMapPixelHypothesis(
-				result_idepth,
-				result_var,
-				VALIDITY_COUNTER_INITIAL_OBSERVE);
-	
-		
-		return true;
+
+
+	private float doLineStereo(float new_u, float new_v, float epx, float epy,
+			float f, float g, float h, Frame refFrame, byte[] bs,
+			float result_idepth, float result_var, float result_eplLength) {
+		// TODO Auto-generated method stub
+		return 0;
 	}
-	*/
-	/*
-	public void updateKeyframe(Deque<Frame> referenceFrames) {
-		//assert(isValid());
-
-		oldest_referenceFrame = referenceFrames.front().get();
-		newest_referenceFrame = referenceFrames.back().get();
-		referenceFrameByID.clear();
-		referenceFrameByID_offset = oldest_referenceFrame->id();
 	
-		// For each frame
-		for(Frame frame : referenceFrames) {
-			assert(frame.hasTrackingParent());
-
-			if(frame.getTrackingParent() != activeKeyFrame) {
-//				printf("WARNING: updating frame %d with %d, which was tracked on a different frame (%d).\nWhile this should work, it is not recommended.",
-//						activeKeyFrame->id(), frame->id(),
-//						frame->getTrackingParent()->id());
-			}
-
-			SIM3 refToKf;
-			// Get SIM3
-			if(frame.pose.trackingParent.frameID == activeKeyFrame.id())
-				refToKf = frame.pose.thisToParent_raw;
-			else
-				refToKf = activeKeyFrame.getScaledCamToWorld().inverse() *  frame->getScaledCamToWorld();
-
-			// Prepare for stereo ??
-			// prepare frame for stereo with keyframe, SE3, K, level
-			frame.prepareForStereoWith(activeKeyFrame, refToKf, K, 0);
-
-			// ?? push what?
-			while((int)referenceFrameByID.size() + referenceFrameByID_offset <= frame->id())
-				referenceFrameByID.push_back(frame.get());
-		}
-
-		resetCounters();
-
-		//*** OBSERVE DEPTH HERE
-		observeDepth();
-		//***
-
-
-		// Regularize, fill holes?
-		regularizeDepthMapFillHoles();
-
-		// Regularize?
-		regularizeDepthMap(false, VAL_SUM_MIN_FOR_KEEP);
-
-		
-		// Update depth in keyframe
-		if(!activeKeyFrame->depthHasBeenUpdatedFlag)
-		{
-			// Update keyframe with updated depth?
-			activeKeyFrame->setDepth(currentDepthMap);
-		}
-
-
-		activeKeyFrame->numMappedOnThis++;
-		activeKeyFrame->numMappedOnThisTotal++;
-
-	}*/
+	/*
+	 * Make val non-zero
+	 */
+	double UNZERO(double val) {
+		return (val < 0 ? (val > -1e-10 ? -1e-10 : val) : (val < 1e-10 ? 1e-10 : val));
+	}
+	
 }

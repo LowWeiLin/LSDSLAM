@@ -21,7 +21,6 @@ public class TrackingReference {
 	// Array of vector3, for each pyramid level.
 	public jeigen.DenseMatrix[][] pointCloudLvl = new jeigen.DenseMatrix[Constants.PYRAMID_LEVELS][];
 	
-	
 	/**
 	 * ReferenceFrame constructor
 	 */
@@ -102,7 +101,7 @@ public class TrackingReference {
 	/**
 	 * Create 3D points from inverse depth values
 	 */
-	public jeigen.DenseMatrix[] createPointCloud(float[] inverseDepth, int width, int height, int level) {
+	public jeigen.DenseMatrix[] createPointCloud(float[] inverseDepth, float[] inverseDepthVariance, int width, int height, int level) {
 		
 		jeigen.DenseMatrix[] pointCloud = new jeigen.DenseMatrix[width*height];
 		
@@ -111,28 +110,31 @@ public class TrackingReference {
 		double cxInv = Constants.cxInv[level];
 		double cyInv = Constants.cyInv[level];
 		
-		int pixelIndex = 0;
 		for (int y=0 ; y<height ; y++) {
 			for (int x=0 ; x<width ; x++) {
 				
-				float depth = inverseDepth[pixelIndex];
-				// Skip if depth is not valid
-				if(depth < 0) {
+				// Index to reference pixel
+				int pixelIndex = x + y*width;
+				
+				// Get idepth, variance
+				float idepth = inverseDepth[pixelIndex];
+				float var = inverseDepthVariance[pixelIndex];
+				
+				// Skip if depth/variance is not valid
+				if(idepth == 0 || var <= 0) {
+					pointCloud[pixelIndex] = null;
 					continue;
 				}
-				//System.out.println(x + "," + y + ": " + depth);
+
 				
+				// Set point, calculated from inverse depth
 				pointCloud[pixelIndex] = (new jeigen.DenseMatrix(
 						new double[][]{{fxInv*x + cxInv},
 									   {fyInv*y + cyInv},
-									   {1}})).div(depth);
+									   {1}})).div(idepth);
 				
-				//System.out.println(pointCloud[]);
-				
-				pixelIndex ++;
 			}
 		}
-		
 		
 		return pointCloud;
 	}

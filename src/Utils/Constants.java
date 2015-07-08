@@ -18,10 +18,27 @@ public class Constants {
 	
 	public static final float MIN_USE_GRAD = 5; // TODO: setting, not constant.
 	public static final float MIN_ABS_GRAD_CREATE = MIN_USE_GRAD;
+	public static final float MIN_ABS_GRAD_DECREASE = MIN_USE_GRAD;
 	
 	
-	// this is the distance of the sample points used for the stereo descriptor.
-	public static final float GRADIENT_SAMPLE_DIST = 1.0f;
+	/** ============== constants for validity handling ======================= */
+
+	// validity can take values between 0 and X, where X depends on the abs. gradient at that location:
+	// it is calculated as VALIDITY_COUNTER_MAX + (absGrad/255)*VALIDITY_COUNTER_MAX_VARIABLE
+	public static final float VALIDITY_COUNTER_MAX = (5.0f); // validity will never be higher than this
+	public static final float VALIDITY_COUNTER_MAX_VARIABLE = (250.0f); // validity will never be higher than this
+
+	public static final int VALIDITY_COUNTER_INC = 5;		// validity is increased by this on sucessfull stereo
+	public static final int VALIDITY_COUNTER_DEC = 5;		// validity is decreased by this on failed stereo
+	public static final int VALIDITY_COUNTER_INITIAL_OBSERVE = 5;	// initial validity for first observations
+
+	public static final int VAL_SUM_MIN_FOR_CREATE = 30; // minimal summed validity over 5x5 region to create a new hypothesis for non-blacklisted pixel (hole-filling)
+	public static final int VAL_SUM_MIN_FOR_KEEP = 24; // minimal summed validity over 5x5 region to keep hypothesis (regularization)
+	public static final int VAL_SUM_MIN_FOR_UNBLACKLIST = 100; // if summed validity surpasses this, a pixel is un-blacklisted.
+
+	public static final int MIN_BLACKLIST = -1;	// if blacklist is SMALLER than this, pixel gets ignored. blacklist starts with 0.
+
+	
 	
 	// ============== initial stereo pixel selection ======================
 	public static final float MIN_EPL_GRAD_SQUARED = (2.0f*2.0f);
@@ -29,7 +46,25 @@ public class Constants {
 	public static final float MIN_EPL_ANGLE_SQUARED = (0.3f*0.3f);
 	
 	
-	
+	// ============== stereo & gradient calculation ======================
+	public static final float MIN_DEPTH = 0.05f; // this is the minimal depth tested for stereo.
+
+	// Particularly important for initial pixel.
+	public static final float MAX_EPL_LENGTH_CROP = 30.0f; // maximum length of epl to search.
+	public static final float MIN_EPL_LENGTH_CROP = 3.0f; // minimum length of epl to search.
+
+	// this is the distance of the sample points used for the stereo descriptor.
+	public static final float GRADIENT_SAMPLE_DIST = 1.0f;
+
+	// pixel a point needs to be away from border
+	public static final int SAMPLE_POINT_TO_BORDER = 7;
+
+	// pixels with too big an error are definitely thrown out.
+	public static final float MAX_ERROR_STEREO = 1300.0f; // maximal photometric error for stereo to be successful (sum over 5 squared intensity differences)
+	public static final float MIN_DISTANCE_ERROR_STEREO = 1.5f; // minimal multiplicative difference to second-best match to not be considered ambiguous.
+
+	// defines how large the stereo-search region is. it is [mean] +/- [std.dev]*STEREO_EPL_VAR_FAC
+	public static final float STEREO_EPL_VAR_FAC = 2.0f;
 	
 
 	// Camera matrix K

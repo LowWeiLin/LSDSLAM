@@ -31,17 +31,13 @@ public class Frame {
 	// Depth info
 	public float[][] inverseDepthLvl;
 	public float[][] inverseDepthVarianceLvl;
-	public float meanIdepth = 0;
-	public int numPoints = 0;
 	public boolean hasIDepthBeenSet = false;
 	public boolean depthHasBeenUpdatedFlag = false;
 	
 	
-	// Pose
-	public FramePoseStruct pose;
-	
-	//
+	// Graph values
 	int id = 0;
+	public FramePoseStruct pose;
 	
 	
 
@@ -59,6 +55,18 @@ public class Frame {
 	public jeigen.DenseMatrix otherToThis_R_row2; // vec3
 	public jeigen.DenseMatrix thisToOther_t; // vec3
 	
+
+	// statistics
+	public float initialTrackedResidual;
+	public int numFramesTrackedOnThis;
+	public int numMappedOnThis;
+	public int numMappedOnThisTotal;
+	public float meanIdepth;
+	public int numPoints;
+	public int idxInKeyframes;
+	public float edgeErrorSum, edgesNum;
+	public int numMappablePixels;
+	public float meanInformation;
 	
 	
 	public Frame(Mat image) {
@@ -108,7 +116,7 @@ public class Frame {
 			this.imageLvl[i].get(0, 0, imageArrayLvl[i]);
 			toSigned(imageArrayLvl[i]);
 			
-			// Gradient
+			// Gradient, Max gradient
 			this.imageGradientXLvl[i] = gradientX(imageLvl[i]);
 			this.imageGradientYLvl[i] = gradientY(imageLvl[i]);
 			this.imageGradientMaxLvl[i] = gradientMax(imageGradientXLvl[i], imageGradientYLvl[i]);
@@ -127,6 +135,7 @@ public class Frame {
 			this.imageGradientYLvl[i].get(0, 0, imageGradientYArrayLvl[i]);
 			this.imageGradientMaxArrayLvl[i] = new float[(int) imageGradientMaxLvl[i].total()];
 			this.imageGradientMaxLvl[i].get(0, 0, imageGradientMaxArrayLvl[i]);
+			
 		}
 	}
 	
@@ -208,6 +217,13 @@ public class Frame {
 		float sumIdepth=0;
 		
 		int pixels = width(0)*height(0);
+		if (inverseDepthLvl[0] == null) {
+			inverseDepthLvl[0] = new float[pixels];
+		}
+		if (inverseDepthVarianceLvl[0] == null) {
+			inverseDepthVarianceLvl[0] = new float[pixels];
+		}
+		
 		for (int i=0 ; i<pixels ; i++) {
 			if (newDepth[i].isValid && newDepth[i].idepth_smoothed >= -0.05) {
 				inverseDepthLvl[0][i] = newDepth[i].idepth_smoothed;
@@ -230,9 +246,98 @@ public class Frame {
 		hasIDepthBeenSet = true;
 		depthHasBeenUpdatedFlag = true;
 		
+		
+		// Do lower levels
+		
+		for (int level=1 ; level<Constants.PYRAMID_LEVELS ; level++) {
+			int pixelsLvl = width(level)*height(level);
+			// Initialize arrays
+			if (inverseDepthLvl[level] == null) {
+				inverseDepthLvl[level] = new float[pixelsLvl];
+			}
+			if (inverseDepthVarianceLvl[level] == null) {
+				inverseDepthVarianceLvl[level] = new float[pixelsLvl];
+			}
+			
+
+			float[] idepthSource = inverseDepthLvl[level - 1];
+			float[] idepthVarSource = inverseDepthVarianceLvl[level - 1];
+			float[] idepthDest = inverseDepthLvl[level];
+			float[] idepthVarDest = inverseDepthVarianceLvl[level];
+			
+			int width = width(level);
+			int height = height(level);
+			int sw = width(level - 1);
+			
+			for(int y=0;y<height;y++) {
+				for(int x=0;x<width;x++) {
+					int idx = 2*(x+y*sw);
+					int idxDest = (x+y*width);
+
+					float idepthSumsSum = 0;
+					float ivarSumsSum = 0;
+					int num=0;
+
+					// build sums
+					float ivar;
+					float var = idepthVarSource[idx];
+					if(var > 0)
+					{
+						ivar = 1.0f / var;
+						ivarSumsSum += ivar;
+						idepthSumsSum += ivar * idepthSource[idx];
+						num++;
+					}
+
+					var = idepthVarSource[idx+1];
+					if(var > 0)
+					{
+						ivar = 1.0f / var;
+						ivarSumsSum += ivar;
+						idepthSumsSum += ivar * idepthSource[idx+1];
+						num++;
+					}
+
+					var = idepthVarSource[idx+sw];
+					if(var > 0)
+					{
+						ivar = 1.0f / var;
+						ivarSumsSum += ivar;
+						idepthSumsSum += ivar * idepthSource[idx+sw];
+						num++;
+					}
+
+					var = idepthVarSource[idx+sw+1];
+					if(var > 0)
+					{
+						ivar = 1.0f / var;
+						ivarSumsSum += ivar;
+						idepthSumsSum += ivar * idepthSource[idx+sw+1];
+						num++;
+					}
+					
+					if(num > 0)
+					{
+						float depth = ivarSumsSum / idepthSumsSum;
+						idepthDest[idxDest] = 1.0f / depth;
+						idepthVarDest[idxDest] = num / ivarSumsSum;
+					}
+					else
+					{
+						idepthDest[idxDest] = -1;
+						idepthVarDest[idxDest] = -1;
+					}
+				}
+			}
+
+			//idepthValid[level] = true;
+			//idepthVarValid[level] = true;
+			
+		}
+		
 	}
 	
-	void prepareForStereoWith(Frame other, SIM3 thisToOther, int level) {
+	public void prepareForStereoWith(Frame other, SIM3 thisToOther, int level) {
 		SIM3 otherToThis = thisToOther.inverse();
 
 		K_otherToThis_R = Constants.K[0].mul(otherToThis.getRotationMat()).mul(otherToThis.getScale());
@@ -257,6 +362,18 @@ public class Frame {
 	
 	public int id() {
 		return id;
+	}
+	
+	public SIM3 getScaledCamToWorld() {
+		return pose.getCamToWorld();
+	}
+	
+	public boolean hasTrackingParent() {
+		return pose.trackingParent != null;
+	}
+	
+	public Frame getTrackingParent() {
+		return pose.trackingParent.frame;
 	}
 	
 }
