@@ -179,7 +179,7 @@ public class LSDSLAM {
 		}
 
 		//TODO:
-		boolean trackingIsGood = true;
+		boolean trackingIsGood = tracker.trackingWasGood;
 		
 		// set mappingFrame
 		if(trackingIsGood) {
@@ -235,7 +235,8 @@ public class LSDSLAM {
 		while(unmappedTrackedFrames.size() > 0 &&
 				(!unmappedTrackedFrames.peekFirst().hasTrackingParent() ||
 				unmappedTrackedFrames.peekFirst().getTrackingParent() != currentKeyFrame)) {
-			
+			System.out.println("Pop " + !unmappedTrackedFrames.peekFirst().hasTrackingParent()
+					+ " " + (unmappedTrackedFrames.peekFirst().getTrackingParent() != currentKeyFrame));
 			unmappedTrackedFrames.pop();//.clear_refPixelWasGood();
 		}
 

@@ -36,7 +36,8 @@ public class Frame {
 	
 	
 	// Graph values
-	int id = 0;
+	static int totalFrames = 0;
+	int id;
 	public FramePoseStruct pose;
 	
 	
@@ -70,6 +71,11 @@ public class Frame {
 	
 	
 	public Frame(Mat image) {
+		
+		// Set frame id
+		id = totalFrames;
+		totalFrames++;
+		
 		
 		// Pose
 		pose = new FramePoseStruct(this);
@@ -340,14 +346,14 @@ public class Frame {
 	public void prepareForStereoWith(Frame other, SIM3 thisToOther, int level) {
 		SIM3 otherToThis = thisToOther.inverse();
 
-		K_otherToThis_R = Constants.K[0].mul(otherToThis.getRotationMat()).mul(otherToThis.getScale());
+		K_otherToThis_R = Constants.K[0].mmul(otherToThis.getRotationMat()).mul(otherToThis.getScale());
 		otherToThis_t = Vec.array3ToVec(otherToThis.getTranslation());
-		K_otherToThis_t = Constants.K[0].mul(otherToThis_t);
+		K_otherToThis_t = Constants.K[0].mmul(otherToThis_t);
 
 
 
 		thisToOther_t = Vec.array3ToVec(thisToOther.getTranslation());
-		K_thisToOther_t = Constants.K[0].mul(thisToOther_t);
+		K_thisToOther_t = Constants.K[0].mmul(thisToOther_t);
 		thisToOther_R = thisToOther.getRotationMat().mul(thisToOther.getScale());
 		otherToThis_R_row0 = thisToOther_R.col(0);
 		otherToThis_R_row1 = thisToOther_R.col(1);

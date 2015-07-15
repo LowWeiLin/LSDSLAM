@@ -1,6 +1,7 @@
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.highgui.Highgui;
+import org.opencv.highgui.VideoCapture;
 import org.opencv.imgproc.Imgproc;
 
 import Utils.Constants;
@@ -16,30 +17,40 @@ public class LiveSLAMWrapper {
 	}
 	
 	public void loop() {
-//		while(true) {
-//			// TODO: Get image here
-//			
-//			
-//			// Process image frame
-//			newImageCallback(null);
-//		}
+		
+		VideoCapture capture = new VideoCapture();
+		capture.open("vid2.avi");
+		
+		while(true) {
+			Mat frame = new Mat();
+			boolean success = capture.read(frame);
+			
+			if (!success) {
+				break;
+			}
+			
+			// Process image frame
+			newImageCallback(frame);
+		}
 		
 		
 		// Read image
-		Mat image1 = null;
-		Mat image2 = null;
-		image1 = Highgui.imread("test1.jpg");
-		image2 = Highgui.imread("test2.jpg");
-		newImageCallback(image1);
-		newImageCallback(image2);
-		newImageCallback(image1);
-		newImageCallback(image2);
+//		Mat image1 = null;
+//		Mat image2 = null;
+//		image1 = Highgui.imread("test1.jpg");
+//		image2 = Highgui.imread("test2.jpg");
+//		newImageCallback(image1);
+//		newImageCallback(image2);
+//		newImageCallback(image1);
+//		newImageCallback(image2);
 		
 		
 		
 	}
 	
 	public void newImageCallback(Mat image) {
+		System.out.println("-------\nFrame " + imageSeqNumber + "\n-------");
+		
 		// Increment image sequence number
 		imageSeqNumber++;
 

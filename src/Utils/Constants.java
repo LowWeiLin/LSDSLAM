@@ -3,6 +3,8 @@ package Utils;
 import jeigen.DenseMatrix;
 
 public class Constants {
+	
+	public static final float DIVISION_EPS  = 1e-10f;
 
 	public static final float MAX_VAR = 0.5f * 0.5f; // initial variance on creation - if variance becomes larger than this, hypothesis is removed.
 	public static final float VAR_RANDOM_INIT_INITIAL = 0.5f * MAX_VAR; // initial variance for Random Initialization
@@ -10,11 +12,6 @@ public class Constants {
 	public static final int PYRAMID_LEVELS = 5;
 	public static final int SE3TRACKING_MAX_LEVEL = 5;
 	public static final int SE3TRACKING_MIN_LEVEL = 0;
-	
-	public static final float MIN_GOODPERALL_PIXEL_ABSMIN = 0.01f;
-	
-	public static final float MAX_DIFF_CONSTANT = (40.0f*40.0f);
-	public static final float MAX_DIFF_GRAD_MULT = (0.5f*0.5f);
 	
 	public static final float MIN_USE_GRAD = 5; // TODO: setting, not constant.
 	public static final float MIN_ABS_GRAD_CREATE = MIN_USE_GRAD;
@@ -67,6 +64,35 @@ public class Constants {
 	public static final float STEREO_EPL_VAR_FAC = 2.0f;
 	
 
+	// ============== RE-LOCALIZATION, KF-REACTIVATION etc. ======================
+	// defines the level on which we do the quick tracking-check for relocalization.
+
+	public static final float MAX_DIFF_CONSTANT = (40.0f*40.0f);
+	public static final float MAX_DIFF_GRAD_MULT = (0.5f*0.5f);
+
+	public static final float MIN_GOODPERGOODBAD_PIXEL = (0.5f);
+	public static final float MIN_GOODPERALL_PIXEL = (0.04f);
+	public static final float MIN_GOODPERALL_PIXEL_ABSMIN = (0.01f);
+
+	public static final int INITIALIZATION_PHASE_COUNT = 5;
+
+	public static final int MIN_NUM_MAPPED = 5;
+	
+	// ============== Smoothing and regularization ======================
+	// distance factor for regularization.
+	// is used as assumed inverse depth variance between neighbouring pixel.
+	// basically determines the amount of spacial smoothing (small -> more smoothing).
+	static float depthSmoothingFactor = 1;
+	public static final float REG_DIST_VAR = (0.075f*0.075f*depthSmoothingFactor*depthSmoothingFactor);
+
+	// define how strict the merge-processes etc. are.
+	// are multiplied onto the difference, so the larger, the more restrictive.
+	public static final float DIFF_FAC_SMOOTHING = (1.0f*1.0f);
+	public static final float DIFF_FAC_OBSERVE = (1.0f*1.0f);
+	public static final float DIFF_FAC_PROP_MERGE = (1.0f*1.0f);
+	public static final float DIFF_FAC_INCONSISTENT = (1.0f * 1.0f);
+	
+	
 	// Camera matrix K
 	public static final jeigen.DenseMatrix[] K = new DenseMatrix[PYRAMID_LEVELS];
 	public static final double[] fx = new double[PYRAMID_LEVELS];

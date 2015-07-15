@@ -125,6 +125,14 @@ public class Vec {
 							   {mat.get(2, 0),mat.get(2, 1),mat.get(2, 2)}};
 	}
 	
+	/**
+	 * 3x1 vector to array
+	 */
+	public static double[] vec3ToArray(jeigen.DenseMatrix vec) {
+		return new double[] {vec.get(0,0),
+							vec.get(1,0),
+							vec.get(2,0)};
+	}
 	
 	/**
 	 * 6x1 vector to array
