@@ -142,6 +142,15 @@ public class Tracker {
 						level);
 			}
 			
+			// Write point cloud to file
+//			try {
+//				TrackingReference.writePointCloudToFile("pointCloud-"+frame.id()+"-"+level+".xyz",
+//						referenceFrame.pointCloudLvl[level], referenceFrame.width(level), referenceFrame.height(level));
+//			} catch (FileNotFoundException | UnsupportedEncodingException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+			
 			
 			calculateResidualAndBuffers(referenceFrame, frame, refToFrame, level);
 			
@@ -297,7 +306,7 @@ public class Tracker {
 //		}
 		
 		
-		//System.out.println("Vec6: " + Arrays.toString(SE3.ln(refToFrame)));
+		System.out.println("Vec6: " + Arrays.toString(SE3.ln(refToFrame)));
 		//System.out.println("Rotation: " + refToFrame.getRotationMat());
 		//System.out.println("Translation: " + refToFrame.getTranslationMat());
 		
@@ -365,7 +374,6 @@ public class Tracker {
 		
 		// For each point in point cloud
 		for (int i=0 ; i<referenceFrame.pointCloudLvl[level].length ; i++) {
-			
 			// 3D position
 			jeigen.DenseMatrix point = referenceFrame.pointCloudLvl[level][i];
 			
@@ -599,7 +607,7 @@ public class Tracker {
 			
 			
 			VideoCapture capture = new VideoCapture();
-			capture.open("vid2.avi");
+			capture.open("keyboard-vid-trimmed.avi");
 			Mat mat = new Mat();
 			
 			Mat firstFrame = new Mat();
@@ -615,7 +623,7 @@ public class Tracker {
 			// Write 3D points of camera center
 			PrintWriter writer = null;
 			try {
-				writer = new PrintWriter("3dpoints_.xyz", "ASCII");
+				writer = new PrintWriter("3dpoints-keyboard.xyz", "ASCII");
 			} catch (FileNotFoundException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -627,15 +635,19 @@ public class Tracker {
 			
 			int count = 0;
 			for(;;){
-				System.out.println(count);
+				//System.out.println(count);
 				boolean success = capture.read(mat); //reads captured frame into the Mat image
 				
-				if (!success || count >= 10) {
+				if (!success || count >= 50) {
 					break;
 				}
 				Imgproc.cvtColor(mat, mat, Imgproc.COLOR_RGB2GRAY);
 				   
 				Frame frame = new Frame(mat);
+				
+				//Highgui.imwrite("Test-"+count+".jpg", frame.imageLvl[0]);
+				
+				System.out.println(refFrame.keyframe.id()+"-->"+frame.id());
 				
 				
 				SE3 se3 = tracker.trackFrame(refFrame, frame, SE3.exp(new double[]{0,0,0,0,0,0}));
@@ -644,7 +656,6 @@ public class Tracker {
 					continue;
 				
 				System.out.println("Vec6: " + Arrays.toString(SE3.ln(se3)));
-				count++;
 				   
 				double[] se3Array = SE3.ln(se3);
 				
@@ -653,7 +664,10 @@ public class Tracker {
 				writer.printf("%.6f\n", se3Array[2]);
 				
 				writer.flush();
-   
+   				
+				
+				count++;
+				
 			}
 			
 			

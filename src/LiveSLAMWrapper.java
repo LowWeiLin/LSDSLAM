@@ -19,7 +19,7 @@ public class LiveSLAMWrapper {
 	public void loop() {
 		
 		VideoCapture capture = new VideoCapture();
-		capture.open("vid2.avi");
+		capture.open("keyboard-vid-trimmed.avi");
 		
 		while(true) {
 			Mat frame = new Mat();

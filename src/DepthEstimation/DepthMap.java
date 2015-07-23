@@ -5,6 +5,10 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Random;
 
+import org.opencv.core.Mat;
+import org.opencv.highgui.Highgui;
+import org.opencv.imgproc.Imgproc;
+
 import Utils.Constants;
 import Utils.Utils;
 import DataStructures.Frame;
@@ -190,11 +194,14 @@ public class DepthMap {
 
 		// Regularize, fill holes?
 		// TODO:
-		//regularizeDepthMapFillHoles();
+		regularizeDepthMapFillHoles();
 
 		// Regularize?
 		// TODO:
 		//regularizeDepthMap(false, VAL_SUM_MIN_FOR_KEEP);
+		
+		// **WRITES depth map to image for testing
+		//getDepthMap();
 		
 		// Update depth in keyframe
 		if(!activeKeyFrame.depthHasBeenUpdatedFlag) {
@@ -275,7 +282,7 @@ public class DepthMap {
 	}
 	
 	boolean observeDepthCreate(int x, int y, int idx) {
-		System.out.println("DepthMap-observeDepthCreate");
+		//System.out.println("DepthMap-observeDepthCreate");
 		DepthMapPixelHypothesis target = currentDepthMap[idx];
 
 		// ???
@@ -1054,6 +1061,76 @@ public class DepthMap {
 		
 		return new float[] {best_match_err, result_idepth, result_var, result_eplLength};
 	}
+	
+	static int getDepthMapCount = 0;
+	public void getDepthMap() {
+		
+		Mat depthMap = new Mat();
+		this.activeKeyFrame.imageLvl[0].copyTo(depthMap);;
+		
+		for(int y=0;y<height; y++) {
+			for(int x=0;x<width;x++) {
+				
+				int idx = x+y*width;
+				DepthMapPixelHypothesis target = currentDepthMap[idx];
+				boolean hasHypothesis = target.isValid;
+				
+				if (hasHypothesis) {
+					float idepth = target.idepth * 255f/1.5f;
+					depthMap.put(y, x, idepth);
+					
+				}
+				
+				
+			}
+		}
+		
+		Highgui.imwrite("depthMap-"+getDepthMapCount+".jpg", depthMap);
+		
+		getDepthMapCount++;
+		
+	}
+	
+	
+	Mat debugImageDepth = new Mat();
+	static int debugPlotDepthMapCount = 0;
+	public int debugPlotDepthMap() {
+		if(activeKeyFrame == null) {
+			return 1;
+		}
+
+		this.activeKeyFrame.imageLvl[0].copyTo(debugImageDepth);
+		Imgproc.cvtColor(debugImageDepth, debugImageDepth, Imgproc.COLOR_GRAY2RGB);
+
+		// debug plot & publish sparse version?
+		int refID = referenceFrameByID_offset;
+
+
+		for(int y=0;y<height;y++) {
+			for(int x=0;x<width;x++)
+			{
+				int idx = x + y*width;
+
+				if(currentDepthMap[idx].blacklisted < Constants.MIN_BLACKLIST) {
+					debugImageDepth.put(y, x, new byte[]{0,0,(byte) 255});
+				}
+
+				if(!currentDepthMap[idx].isValid)
+					continue;
+
+				byte[] color = currentDepthMap[idx].getVisualizationColor(refID);
+				debugImageDepth.put(y, x, color);
+			}
+		}
+
+		
+		Highgui.imwrite("debugPlotDepthMapCount-"+debugPlotDepthMapCount + ".jpg", debugImageDepth);
+		
+		
+		debugPlotDepthMapCount++;
+		return 1;
+	}
+	
 	
 	/*
 	 * Make val non-zero

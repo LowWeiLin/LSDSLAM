@@ -9,6 +9,7 @@ import DataStructures.KeyFrameGraph;
 import DataStructures.TrackingReference;
 import DepthEstimation.DepthMap;
 import LieAlgebra.SE3;
+import Utils.Constants;
 
 
 public class LSDSLAM {
@@ -83,12 +84,12 @@ public class LSDSLAM {
 		// DO TRACKING & Show tracking result.
 		
 		// TODO: get initial estimate
-//		SE3 frameToReference_initialEstimate = 
-//				se3FromSim3(trackingReferencePose.getCamToWorld().inverse() * 
-//						keyFrameGraph.allFramePoses.back().getCamToWorld());
+		SE3 frameToReference_initialEstimate = 
+				trackingReferencePose.getCamToWorld().inverse().mul(
+					keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1).getCamToWorld()).getSE3();
 
 		// Just use 0 for now.
-		SE3 frameToReference_initialEstimate = SE3.exp(new double[]{0,0,0,0,0,0});
+		//SE3 frameToReference_initialEstimate = SE3.exp(new double[]{0,0,0,0,0,0});
 
 		SE3 newRefToFrame_poseUpdate = tracker.trackFrame(
 				trackingReference,
@@ -131,32 +132,36 @@ public class LSDSLAM {
 		
 
 
-		/*
+		
 		// TODO: Keyframe selection
-		latestTrackedFrame = trackingNewFrame;
-		if (!my_createNewKeyframe && currentKeyFrame->numMappedOnThisTotal > MIN_NUM_MAPPED)
+		/*
+		//latestTrackedFrame = trackingNewFrame;
+		if (!my_createNewKeyframe && currentKeyFrame.numMappedOnThisTotal > Constants.MIN_NUM_MAPPED)
 		{
-			Sophus::Vector3d dist = newRefToFrame_poseUpdate.translation() * currentKeyFrame->meanIdepth;
-			float minVal = fmin(0.2f + keyFrameGraph->keyframesAll.size() * 0.8f / INITIALIZATION_PHASE_COUNT,1.0f);
+			Vector3d dist = newRefToFrame_poseUpdate.getTranslationMat().mul(currentKeyFrame.meanIdepth);
+			float minVal = Math.min(0.2f + keyFrameGraph.keyframesAll.size() * 0.8f / Constants.INITIALIZATION_PHASE_COUNT, 1.0f);
 
-			if(keyFrameGraph->keyframesAll.size() < INITIALIZATION_PHASE_COUNT)	minVal *= 0.7;
+			if(keyFrameGraph.keyframesAll.size() < Constants.INITIALIZATION_PHASE_COUNT)	minVal *= 0.7;
 
-			lastTrackingClosenessScore = trackableKeyFrameSearch->getRefFrameScore(dist.dot(dist), tracker->pointUsage);
+			lastTrackingClosenessScore = trackableKeyFrameSearch.getRefFrameScore(dist.dot(dist), tracker.pointUsage);
 
 			if (lastTrackingClosenessScore > minVal)
 			{
 				createNewKeyFrame = true;
+				
+				System.out.println("CREATE NEW KEYFRAME");
 
-				if(enablePrintDebugInfo && printKeyframeSelectionInfo)
-					printf("SELECT %d on %d! dist %.3f + usage %.3f = %.3f > 1\n",trackingNewFrame->id(),trackingNewFrame->getTrackingParent()->id(), dist.dot(dist), tracker->pointUsage, trackableKeyFrameSearch->getRefFrameScore(dist.dot(dist), tracker->pointUsage));
+				//if(enablePrintDebugInfo && printKeyframeSelectionInfo)
+				//	printf("SELECT %d on %d! dist %.3f + usage %.3f = %.3f > 1\n",trackingNewFrame->id(),trackingNewFrame->getTrackingParent()->id(), dist.dot(dist), tracker->pointUsage, trackableKeyFrameSearch->getRefFrameScore(dist.dot(dist), tracker->pointUsage));
 			}
 			else
 			{
-				if(enablePrintDebugInfo && printKeyframeSelectionInfo)
-					printf("SKIPPD %d on %d! dist %.3f + usage %.3f = %.3f > 1\n",trackingNewFrame->id(),trackingNewFrame->getTrackingParent()->id(), dist.dot(dist), tracker->pointUsage, trackableKeyFrameSearch->getRefFrameScore(dist.dot(dist), tracker->pointUsage));
+				//if(enablePrintDebugInfo && printKeyframeSelectionInfo)
+				//	printf("SKIPPD %d on %d! dist %.3f + usage %.3f = %.3f > 1\n",trackingNewFrame->id(),trackingNewFrame->getTrackingParent()->id(), dist.dot(dist), tracker->pointUsage, trackableKeyFrameSearch->getRefFrameScore(dist.dot(dist), tracker->pointUsage));
 			}
 		}
 		*/
+		
 
 		// Push into deque for mapping
 		if(unmappedTrackedFrames.size() < 50 || 
@@ -195,9 +200,14 @@ public class LSDSLAM {
 				boolean didSomething = updateKeyframe();
 
 				if(!didSomething) {
+					System.err.println("updateKeyFrame false");
 					return false;
 				}
 			}
+			
+			// Debug and draw depth map
+			//map.debugPlotDepthMap();
+			
 			return true;
 		} else { // Tracking is not good
 			System.err.println("Tracking bad!");

@@ -13,7 +13,7 @@ public class Constants {
 	public static final int SE3TRACKING_MAX_LEVEL = 5;
 	public static final int SE3TRACKING_MIN_LEVEL = 0;
 	
-	public static final float MIN_USE_GRAD = 5; // TODO: setting, not constant.
+	public static final float MIN_USE_GRAD = 15; // TODO: setting, not constant.
 	public static final float MIN_ABS_GRAD_CREATE = MIN_USE_GRAD;
 	public static final float MIN_ABS_GRAD_DECREASE = MIN_USE_GRAD;
 	

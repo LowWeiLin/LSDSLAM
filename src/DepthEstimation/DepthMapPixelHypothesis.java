@@ -62,6 +62,23 @@ public class DepthMapPixelHypothesis {
 	// byte[3]
 	byte[] getVisualizationColor(int lastFrameID)
 	{
+		
+		float id;
+		id= idepth_smoothed;
+
+		if(id < 0)
+			return new byte[]{(byte) 255,(byte) 255,(byte) 255};
+
+		// rainbow between 0 and 4
+		float r = (float) ((0f-id) * 255f / 1.0f); if(r < 0) r = -r;
+		float g = (float) ((1f-id) * 255f / 1.0f); if(g < 0) g = -g;
+		float b = (float) ((2f-id) * 255f / 1.0f); if(b < 0) b = -b;
+
+		int rc = (int) (r < 0 ? 0 : (r > 255 ? 255 : r));
+		int gc = (int) (g < 0 ? 0 : (g > 255 ? 255 : g));
+		int bc = (int) (b < 0 ? 0 : (b > 255 ? 255 : b));
+
+		return new byte[]{(byte) (255-rc),(byte) (255-gc),(byte) (255-bc)};
 		/*
 		if(debugDisplay == 0 || debugDisplay == 1)
 		{
@@ -121,7 +138,7 @@ public class DepthMapPixelHypothesis {
 			return new byte[]{v,0,v};
 		}
 		*/
-		return new byte[]{(byte) 255,(byte) 255,(byte) 255};
+		//return new byte[]{(byte) 255,(byte) 255,(byte) 255};
 	}
 	
 }

@@ -132,8 +132,10 @@ public class Frame {
 //			Imgproc.pyrDown(this.imageGradientMaxLvl[i-1], this.imageGradientMaxLvl[i]);
 			
 			
-			// Highgui.imwrite("gradx-"+i+".jpg", this.imageGradientXLvl[i]);
-			// Highgui.imwrite("gradY-"+i+".jpg", this.imageGradientYLvl[i]);
+			//Highgui.imwrite("gradX-"+this.id+"-"+i+".jpg", this.imageGradientXLvl[i]);
+			//Highgui.imwrite("gradY-"+this.id+"-"+i+".jpg", this.imageGradientYLvl[i]);
+			//Highgui.imwrite("gradmax-"+this.id+"-"+i+".jpg", this.imageGradientMaxLvl[i]);
+			
 			
 			this.imageGradientXArrayLvl[i] = new float[(int) imageGradientXLvl[i].total()];
 			this.imageGradientXLvl[i].get(0, 0, imageGradientXArrayLvl[i]);

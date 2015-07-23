@@ -73,11 +73,11 @@ public class SIM3 {
 //		getscale() *= rhs.get_scale();
 		
 		newSim3.se3.translation = newSim3.se3.translation.add(
-				this.getRotationMat().mul(sim3.getTranslationMat().mul(getScale())));
+				this.getRotationMat().mmul(sim3.getTranslationMat().mul(getScale())));
 		newSim3.se3.rotation.mulEq(sim3.getRotation());
 		newSim3.scale *= sim3.getScale();
 		
-		return this;
+		return newSim3;
 	}
 	
 	public static SIM3 inverse(SIM3 sim3) {

@@ -155,7 +155,7 @@ public class TrackingReference {
 		return keyframe.height(level);
 	}
 	
-	public void writePointCloudToFile(String filename, jeigen.DenseMatrix[] pointCloud, int width, int height) throws FileNotFoundException, UnsupportedEncodingException {
+	public static void writePointCloudToFile(String filename, jeigen.DenseMatrix[] pointCloud, int width, int height) throws FileNotFoundException, UnsupportedEncodingException {
 		PrintWriter writer = new PrintWriter(filename, "ASCII");
 	
 		writer.println(3);
