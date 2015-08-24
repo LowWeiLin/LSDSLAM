@@ -101,7 +101,10 @@ public class TrackingReference {
 	/**
 	 * Create 3D points from inverse depth values
 	 */
-	public jeigen.DenseMatrix[] createPointCloud(float[] inverseDepth, float[] inverseDepthVariance, int width, int height, int level) {
+	public jeigen.DenseMatrix[] createPointCloud(float[] inverseDepth,
+			float[] inverseDepthVariance, int width, int height, int level) {
+		
+		System.out.println("createPointCloud: " + level);
 		
 		jeigen.DenseMatrix[] pointCloud = new jeigen.DenseMatrix[width*height];
 		
@@ -110,8 +113,8 @@ public class TrackingReference {
 		double cxInv = Constants.cxInv[level];
 		double cyInv = Constants.cyInv[level];
 		
-		for (int y=0 ; y<height ; y++) {
-			for (int x=0 ; x<width ; x++) {
+		for (int y=1 ; y<height-1 ; y++) {
+			for (int x=1 ; x<width-1 ; x++) {
 				
 				// Index to reference pixel
 				int pixelIndex = x + y*width;
@@ -132,7 +135,11 @@ public class TrackingReference {
 						new double[][]{{fxInv*x + cxInv},
 									   {fyInv*y + cyInv},
 									   {1}})).div(idepth);
-				
+				if (x==3 && y==3){
+					System.out.println("Pt: " + (fxInv*x + cxInv) + " " + 
+									   		(fyInv*y + cyInv) + " " +
+									   		1);
+				}
 			}
 		}
 		

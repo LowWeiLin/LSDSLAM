@@ -1,6 +1,8 @@
 import java.util.Deque;
 import java.util.LinkedList;
 
+import jeigen.DenseMatrix;
+
 import org.opencv.core.Mat;
 
 import DataStructures.Frame;
@@ -8,7 +10,9 @@ import DataStructures.FramePoseStruct;
 import DataStructures.KeyFrameGraph;
 import DataStructures.TrackingReference;
 import DepthEstimation.DepthMap;
+import GlobalMapping.TrackableKeyFrameSearch;
 import LieAlgebra.SE3;
+import LieAlgebra.Vec;
 import Utils.Constants;
 
 
@@ -25,6 +29,9 @@ public class LSDSLAM {
 	TrackingReference mappingTrackingReference;
 	KeyFrameGraph keyFrameGraph;
 	
+	Frame latestTrackedFrame;
+	float lastTrackingClosenessScore;
+	TrackableKeyFrameSearch trackableKeyFrameSearch = new TrackableKeyFrameSearch();
 	
 
 	// PUSHED in tracking, READ & CLEARED in mapping
@@ -133,34 +140,36 @@ public class LSDSLAM {
 
 
 		
-		// TODO: Keyframe selection
-		/*
-		//latestTrackedFrame = trackingNewFrame;
-		if (!my_createNewKeyframe && currentKeyFrame.numMappedOnThisTotal > Constants.MIN_NUM_MAPPED)
-		{
-			Vector3d dist = newRefToFrame_poseUpdate.getTranslationMat().mul(currentKeyFrame.meanIdepth);
+		// Keyframe selection
+		
+		latestTrackedFrame = trackingNewFrame;
+		if (!my_createNewKeyframe &&
+				currentKeyFrame.numMappedOnThisTotal > Constants.MIN_NUM_MAPPED) {
+			
+			DenseMatrix dist = newRefToFrame_poseUpdate.getTranslationMat().mul(currentKeyFrame.meanIdepth);
+			double[] distVec = Vec.vec3ToArray(dist); 
 			float minVal = Math.min(0.2f + keyFrameGraph.keyframesAll.size() * 0.8f / Constants.INITIALIZATION_PHASE_COUNT, 1.0f);
 
-			if(keyFrameGraph.keyframesAll.size() < Constants.INITIALIZATION_PHASE_COUNT)	minVal *= 0.7;
+			if(keyFrameGraph.keyframesAll.size() < Constants.INITIALIZATION_PHASE_COUNT) {
+				minVal *= 0.7;
+			}
 
-			lastTrackingClosenessScore = trackableKeyFrameSearch.getRefFrameScore(dist.dot(dist), tracker.pointUsage);
+			lastTrackingClosenessScore = trackableKeyFrameSearch.getRefFrameScore(
+					(float) Vec.dot(distVec, distVec), tracker.pointUsage);
 
-			if (lastTrackingClosenessScore > minVal)
-			{
-				createNewKeyFrame = true;
+			if (lastTrackingClosenessScore > minVal) {
+				//createNewKeyFrame = true;
 				
-				System.out.println("CREATE NEW KEYFRAME");
+				System.err.println("CREATE NEW KEYFRAME");
 
 				//if(enablePrintDebugInfo && printKeyframeSelectionInfo)
 				//	printf("SELECT %d on %d! dist %.3f + usage %.3f = %.3f > 1\n",trackingNewFrame->id(),trackingNewFrame->getTrackingParent()->id(), dist.dot(dist), tracker->pointUsage, trackableKeyFrameSearch->getRefFrameScore(dist.dot(dist), tracker->pointUsage));
-			}
-			else
-			{
+			} else {
 				//if(enablePrintDebugInfo && printKeyframeSelectionInfo)
 				//	printf("SKIPPD %d on %d! dist %.3f + usage %.3f = %.3f > 1\n",trackingNewFrame->id(),trackingNewFrame->getTrackingParent()->id(), dist.dot(dist), tracker->pointUsage, trackableKeyFrameSearch->getRefFrameScore(dist.dot(dist), tracker->pointUsage));
 			}
 		}
-		*/
+		
 		
 
 		// Push into deque for mapping

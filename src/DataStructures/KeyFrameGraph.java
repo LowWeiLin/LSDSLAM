@@ -16,7 +16,7 @@ public class KeyFrameGraph {
 
 	// contains ALL keyframes, as soon as they are "finished".
 	// does NOT yet contain the keyframe that is currently being created.
-	public ArrayList<Frame> keyframesAll;
+	public ArrayList<Frame> keyframesAll = new ArrayList<Frame>();
 
 
 	/** Maps frame ids to keyframes. Contains ALL Keyframes allocated, including the one that currently being created. */

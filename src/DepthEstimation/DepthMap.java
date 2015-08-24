@@ -38,6 +38,7 @@ public class DepthMap {
 	
 	DepthMapPixelHypothesis[] otherDepthMap;
 	DepthMapPixelHypothesis[] currentDepthMap;
+	int[] validityIntegralBuffer;
 	
 	Frame activeKeyFrame;
 	boolean activeKeyFrameIsReactivated;
@@ -63,9 +64,9 @@ public class DepthMap {
 		otherDepthMap = new DepthMapPixelHypothesis[width*height];
 		currentDepthMap = new DepthMapPixelHypothesis[width*height];
 	
+		validityIntegralBuffer = new int[width*height];
 
-//		validityIntegralBuffer = (int*)Eigen::internal::aligned_malloc(width*height*sizeof(int));
-//
+
 //		debugImageHypothesisHandling = cv::Mat(h,w, CV_8UC3);
 //		debugImageHypothesisPropagation = cv::Mat(h,w, CV_8UC3);
 //		debugImageStereoLines = cv::Mat(h,w, CV_8UC3);
@@ -99,7 +100,9 @@ public class DepthMap {
 			if (otherDepthMap[i] == null) {
 				otherDepthMap[i] = new DepthMapPixelHypothesis();
 			}
+			
 			if (currentDepthMap[i] == null) {
+				// Default hypothesis for all pixels
 				currentDepthMap[i] = new DepthMapPixelHypothesis();
 			}
 			
@@ -117,14 +120,30 @@ public class DepthMap {
 		activeKeyFrameIsReactivated = false;
 		
 		
-		Random random = new Random(System.nanoTime());
+		//Random random = new Random(System.nanoTime());
+		Random random = new Random(0);
 		
 		float[] maxGradients = newFrame.imageGradientMaxArrayLvl[0];
 		
+		// For each pixel
 		for(int y=1;y<height-1;y++) {
 			for(int x=1;x<width-1;x++) {
+				// For pixels with significant gradient
+				//System.out.println(x + ", " + y + " - " + maxGradients[x+y*width]);
+				
+				System.out.println("X: " + x + ", " + y + " - " + newFrame.imageGradientXArrayLvl[0][x+y*width]);
+				System.out.println("Y: " + x + ", " + y + " - " + newFrame.imageGradientYArrayLvl[0][x+y*width]);
+				System.out.println("img " + x + ", " + y + " - " + newFrame.imageArrayLvl[0][x+y*width]);
+				
+				
+				//System.out.println("f " + newFrame.id());
+				//System.out.println("img " + x + ", " + y + " - " + newFrame.imageArrayLvl[0][x+y*width]);
+				
 				if(maxGradients[x+y*width] > Constants.MIN_ABS_GRAD_CREATE) {
+					// Get random idepth
 					float idepth = 0.5f + 1.0f * (random.nextInt(100001) / 100000.0f);
+					
+					// Set hypothesis, random idepth and initial variance.
 					currentDepthMap[x+y*width] = new DepthMapPixelHypothesis(
 							idepth,
 							idepth,
@@ -132,13 +151,15 @@ public class DepthMap {
 							Constants.VAR_RANDOM_INIT_INITIAL,
 							20);
 				} else {
+					// Mark as invalid
 					currentDepthMap[x+y*width].isValid = false;
 					currentDepthMap[x+y*width].blacklisted = 0;
+					//System.out.println("initRand: " + x + " " + y);
 				}
 			}
 		}
 		
-
+		// Set depth hypothesis depth values to keyframe
 		activeKeyFrame.setDepth(currentDepthMap);
 		
 	}
@@ -193,12 +214,11 @@ public class DepthMap {
 
 
 		// Regularize, fill holes?
-		// TODO:
 		regularizeDepthMapFillHoles();
 
 		// Regularize?
 		// TODO:
-		//regularizeDepthMap(false, VAL_SUM_MIN_FOR_KEEP);
+		regularizeDepthMap(false, Constants.VAL_SUM_MIN_FOR_KEEP);
 		
 		// **WRITES depth map to image for testing
 		//getDepthMap();
@@ -446,7 +466,7 @@ public class DepthMap {
 		
 		float diff = result_idepth - target.idepth_smoothed;
 
-
+		
 		// if oob: (really out of bounds)
 		if(error == -1){
 			// do nothing, pixel got oob, but is still in bounds in original. I will want to try again.
@@ -488,7 +508,12 @@ public class DepthMap {
 			// update var with observation
 			float w = result_var / (result_var + id_var);
 			float new_idepth = (1-w)*result_idepth + w*target.idepth;
+
+			//System.out.println("Successful observation " + target.idepth + "-->" + new_idepth);
+			
 			target.idepth = (float) UNZERO(new_idepth);
+			
+
 
 			// variance can only decrease from observation; never increase.
 			id_var = id_var * w;
@@ -542,7 +567,7 @@ public class DepthMap {
 		double epy = - fy * ref.thisToOther_t.get(1,0) + ref.thisToOther_t.get(2,0)*(y - cy);
 
 		if(Double.isNaN(epx+epy)) {
-			//System.out.println("EPL n4");
+			System.out.println("EPL n4");
 			return null;
 		}
 		
@@ -550,6 +575,7 @@ public class DepthMap {
 		float eplLengthSquared = (float) (epx*epx+epy*epy);
 		if(eplLengthSquared < Constants.MIN_EPL_LENGTH_SQUARED) {
 			//System.out.println("EPL n3 " + eplLengthSquared);
+			//System.out.println(epx + ", " + epy);
 			return null;
 		}
 
@@ -563,14 +589,14 @@ public class DepthMap {
 
 		if(eplGradSquared < Constants.MIN_EPL_GRAD_SQUARED) {
 			//System.out.println("EPL n2 " + eplGradSquared);
-			//return null;
+			return null;
 		}
 
 
 		// ===== check epl-grad angle ======
 		if(eplGradSquared / (gx*gx+gy*gy) < Constants.MIN_EPL_ANGLE_SQUARED) {
 			//System.out.println("EPL n1 " + eplGradSquared / (gx*gx+gy*gy));
-			//return null;
+			return null;
 		}
 
 
@@ -580,6 +606,7 @@ public class DepthMap {
 		float pepx = (float) (epx * fac);
 		float pepy = (float) (epy * fac);
 		
+		//System.out.println("EPL GOOD");
 		return new float[] {pepx, pepy};
 	}
 
@@ -601,7 +628,7 @@ public class DepthMap {
 	float[] doLineStereo(
 		float u, float v, float epxn, float epyn,
 		float min_idepth, float prior_idepth, float max_idepth,
-		Frame referenceFrame, byte[] referenceFrameImage,
+		Frame referenceFrame, float[] imageArrayLvl,
 		float result_idepth, float result_var, float result_eplLength) {
 
 		// calculate epipolar line start and end point in old image
@@ -781,10 +808,10 @@ public class DepthMap {
 		float cpx = (float) pFar.get(0, 0);
 		float cpy =  (float) pFar.get(1, 0);
 
-		float val_cp_m2 = Utils.interpolatedValue(referenceFrameImage,cpx-2.0f*incx, cpy-2.0f*incy, width);
-		float val_cp_m1 = Utils.interpolatedValue(referenceFrameImage,cpx-incx, cpy-incy, width);
-		float val_cp = Utils.interpolatedValue(referenceFrameImage,cpx, cpy, width);
-		float val_cp_p1 = Utils.interpolatedValue(referenceFrameImage,cpx+incx, cpy+incy, width);
+		float val_cp_m2 = Utils.interpolatedValue(imageArrayLvl,cpx-2.0f*incx, cpy-2.0f*incy, width);
+		float val_cp_m1 = Utils.interpolatedValue(imageArrayLvl,cpx-incx, cpy-incy, width);
+		float val_cp = Utils.interpolatedValue(imageArrayLvl,cpx, cpy, width);
+		float val_cp_p1 = Utils.interpolatedValue(imageArrayLvl,cpx+incx, cpy+incy, width);
 		float val_cp_p2;
 
 
@@ -837,7 +864,7 @@ public class DepthMap {
 				loopCounter == 0)
 		{
 			// interpolate one new point
-			val_cp_p2 = Utils.interpolatedValue(referenceFrameImage,cpx+2*incx, cpy+2*incy, width);
+			val_cp_p2 = Utils.interpolatedValue(imageArrayLvl,cpx+2*incx, cpy+2*incy, width);
 
 
 			// hacky but fast way to get error and differential error: switch buffer variables for last loop.
@@ -1062,6 +1089,219 @@ public class DepthMap {
 		return new float[] {best_match_err, result_idepth, result_var, result_eplLength};
 	}
 	
+	void regularizeDepthMapFillHoles() {
+
+		buildRegIntegralBuffer();
+
+		// TODO: Need to copy the elements?
+		System.arraycopy(currentDepthMap, 0, otherDepthMap, 0, currentDepthMap.length);
+		
+		// TOOD: multithread
+		//threadReducer.reduce(boost::bind(&DepthMap::regularizeDepthMapFillHolesRow, this, _1, _2, _3), 3, height-2, 10);
+		regularizeDepthMapFillHolesRow(3, height-2);
+		
+		//if(enablePrintDebugInfo && printFillHolesStatistics)
+		//	printf("FillHoles (discreteDepth): %d created\n",
+		//			runningStats.num_reg_created);
+	}
+	
+	// Summed area table of number of valid DepthMapPixelHypothesis
+	void buildRegIntegralBuffer() {
+		
+		// Sum horizontally
+		// TODO: run in parallel
+		buildRegIntegralBufferRow1(0, height);
+		
+		// Sum vertically
+		int wh = height*width;
+		for (int i=width ; i<wh ; i++) {
+			validityIntegralBuffer[i] += validityIntegralBuffer[i-width];
+		}
+		
+	}
+
+	void buildRegIntegralBufferRow1(int yMin, int yMax) {
+		for(int y=yMin;y<yMax;y++) {
+			int validityIntegralBufferSUM = 0;
+			for(int x=0;x<width;x++) {
+				int idx = y*width + x;
+				DepthMapPixelHypothesis src = currentDepthMap[idx];
+				
+				if(src.isValid)
+					validityIntegralBufferSUM += src.validity_counter;
+				
+				// Sum/number of valid DepthMapPixelHypothesis in same row, before the pixel?
+				validityIntegralBuffer[idx] = validityIntegralBufferSUM;
+			}
+		}
+	}
+	
+	void regularizeDepthMapFillHolesRow(int yMin, int yMax) {
+		// =========== regularize fill holes
+		float[] keyFrameMaxGradBuf = activeKeyFrame.imageGradientMaxArrayLvl[0];
+
+		// For rows yMin to yMax
+		for(int y=yMin; y<yMax; y++) {
+			// For pixels (3 to width-2) in row
+			for(int x=3;x<width-2;x++) {
+				int idx = x+y*width;
+				// Get hypothessis
+				DepthMapPixelHypothesis dest = otherDepthMap[idx];
+				
+				if(dest.isValid)
+					continue;
+				if(keyFrameMaxGradBuf[idx] < Constants.MIN_ABS_GRAD_DECREASE)
+					continue;
+
+				// Number of valid pixels in some neighbourhood??
+				int[] io = validityIntegralBuffer;
+				int val = io[idx+2+2*width] - io[idx+2-3*width] - io[idx+-3+2*width] + io[idx+-3-3*width];
+
+
+				// If blacklisted and surrounding has some number of valid pixels
+				if((dest.blacklisted >= Constants.MIN_BLACKLIST &&
+						val > Constants.VAL_SUM_MIN_FOR_CREATE) ||
+						val > Constants.VAL_SUM_MIN_FOR_UNBLACKLIST) {
+
+					// Calculate average idepth?
+					
+					float sumIdepthObs = 0, sumIVarObs = 0;
+					int num = 0;
+					int s1max = (x-2) + (y+3)*width;
+					for (int s1 = (x-2) + (y-2)*width; s1 < s1max; s1+=width) {
+						for(int s2 = s1; s2 < s1+5; s2++) {
+							DepthMapPixelHypothesis source = otherDepthMap[s2];
+							if(!source.isValid)
+								continue;
+
+							sumIdepthObs += source.idepth /source.idepth_var;
+							sumIVarObs += 1.0f/source.idepth_var;
+							num++;
+						}
+					}
+
+					float idepthObs = sumIdepthObs / sumIVarObs;
+					idepthObs = (float) UNZERO(idepthObs);
+
+					// Create new hypothesis
+					currentDepthMap[idx] =
+						new DepthMapPixelHypothesis(
+							idepthObs,
+							VAR_RANDOM_INIT_INITIAL,
+							0);
+
+					//if(enablePrintDebugInfo) stats->num_reg_created++;
+				}
+			}
+		}
+	}
+	
+	void regularizeDepthMap(boolean removeOcclusions, int validityTH) {
+
+		//memcpy(otherDepthMap,currentDepthMap,width*height*sizeof(DepthMapPixelHypothesis));
+		System.arraycopy(currentDepthMap, 0, otherDepthMap, 0, currentDepthMap.length);
+		
+
+		regularizeDepthMapRow(validityTH, 2, height-2, removeOcclusions);
+		
+
+//		if(enablePrintDebugInfo && printRegularizeStatistics)
+//			printf("REGULARIZE (%d): %d smeared; %d blacklisted /%d new); %d deleted; %d occluded; %d filled\n",
+//					activeKeyFrame->id(),
+//					runningStats.num_reg_smeared,
+//					runningStats.num_reg_blacklisted,
+//					runningStats.num_reg_setBlacklisted,
+//					runningStats.num_reg_deleted_secondary,
+//					runningStats.num_reg_deleted_occluded,
+//					runningStats.num_reg_created);
+	}
+	
+	void regularizeDepthMapRow(int validityTH, int yMin, int yMax, boolean removeOcclusions) {
+		
+		final int regularize_radius = 2;
+		final float regDistVar = Constants.REG_DIST_VAR;
+
+		for(int y=yMin;y<yMax;y++) {
+			for(int x=regularize_radius ; x<width-regularize_radius ; x++) {
+				int idx = x+y*width;
+				DepthMapPixelHypothesis dest = currentDepthMap[idx];
+				DepthMapPixelHypothesis destRead = otherDepthMap[idx];
+
+				// if isValid need to do better examination and then update.
+
+//				if(enablePrintDebugInfo && destRead->blacklisted < MIN_BLACKLIST)
+//					stats->num_reg_blacklisted++;
+
+				if(!destRead.isValid)
+					continue;
+				
+				float sum=0, val_sum=0, sumIvar=0;//, min_varObs = 1e20;
+				int numOccluding = 0, numNotOccluding = 0;
+
+				for(int dx=-regularize_radius; dx<=regularize_radius;dx++) {
+					for(int dy=-regularize_radius; dy<=regularize_radius;dy++) {
+						DepthMapPixelHypothesis source = otherDepthMap[idx + dx + dy*width];
+
+						if(!source.isValid)
+							continue;
+//						stats->num_reg_total++;
+
+						float diff =source.idepth - destRead.idepth;
+						if(Constants.DIFF_FAC_SMOOTHING*diff*diff > source.idepth_var + destRead.idepth_var) {
+							if(removeOcclusions) {
+								if(source.idepth > destRead.idepth)
+									numOccluding++;
+							}
+							continue;
+						}
+
+						val_sum += source.validity_counter;
+
+						if(removeOcclusions)
+							numNotOccluding++;
+
+						float distFac = (float)(dx*dx+dy*dy)*regDistVar;
+						float ivar = 1.0f/(source.idepth_var + distFac);
+
+						sum += source.idepth * ivar;
+						sumIvar += ivar;
+
+
+					}
+				}
+
+				if(val_sum < validityTH) {
+					dest.isValid = false;
+//					if(enablePrintDebugInfo) stats->num_reg_deleted_secondary++;
+//					dest->blacklisted--;
+
+//					if(enablePrintDebugInfo) stats->num_reg_setBlacklisted++;
+					continue;
+				}
+
+
+				if(removeOcclusions) {
+					if(numOccluding > numNotOccluding) {
+						dest.isValid = false;
+						//if(enablePrintDebugInfo) stats->num_reg_deleted_occluded++;
+
+						continue;
+					}
+				}
+
+				sum = sum / sumIvar;
+				sum = (float) UNZERO(sum);
+				
+
+				// update!
+				dest.idepth_smoothed = sum;
+				dest.idepth_var_smoothed = 1.0f/sumIvar;
+
+				//if(enablePrintDebugInfo) stats->num_reg_smeared++;
+			}
+		}
+	}
+	
 	static int getDepthMapCount = 0;
 	public void getDepthMap() {
 		
@@ -1130,7 +1370,6 @@ public class DepthMap {
 		debugPlotDepthMapCount++;
 		return 1;
 	}
-	
 	
 	/*
 	 * Make val non-zero

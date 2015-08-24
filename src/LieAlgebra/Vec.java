@@ -1,5 +1,7 @@
 package LieAlgebra;
 
+import java.text.DecimalFormat;
+
 public class Vec {
 
 	
@@ -151,5 +153,16 @@ public class Vec {
 	 */
 	public static jeigen.DenseMatrix array3ToVec(double[] vec3) {
 		return new jeigen.DenseMatrix(new double[][]{{vec3[0]},{vec3[1]},{vec3[2]}});
+	}
+	
+	public static String printVec(double[] vec) {
+		DecimalFormat df = new DecimalFormat("#.#######");
+		return "[" + df.format(vec[0]) +
+			   "," + df.format(vec[1]) +
+			   ","+ df.format(vec[2]) +
+			   ","+ df.format(vec[3]) +
+			   ","+ df.format(vec[4]) + 
+			   ","+ df.format(vec[5]) +
+			   "]";
 	}
 }

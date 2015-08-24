@@ -118,8 +118,9 @@ public class Tracker {
 		SE3 frameToRefEstimate = frameToRefInitialEstimate;
 		SE3 refToFrame = SE3.inverse(frameToRefEstimate);
 		
-		//System.out.println(Arrays.toString(SE3.ln(frameToRefEstimate)));
-		//System.out.println(Arrays.toString(SE3.ln(refToFrame)));
+		//System.out.println("Init: "+Arrays.toString(SE3.ln(frameToRefEstimate)));
+		System.out.println("---tracking "+ frame.id() +" ---");
+		System.out.println("Init refToFrame: "+Arrays.toString(SE3.ln(refToFrame)));
 		
 		// LS
 		LGS6 ls = new LGS6();
@@ -133,16 +134,16 @@ public class Tracker {
 			
 
 			// Generate 3D points of reference frame for the level, if not already done.
-			if (referenceFrame.pointCloudLvl[level] == null) {
+			//if (referenceFrame.pointCloudLvl[level] == null) {
 				referenceFrame.pointCloudLvl[level] = 
 						referenceFrame.createPointCloud(
 						referenceFrame.keyframe.inverseDepthLvl[level],
 						referenceFrame.keyframe.inverseDepthVarianceLvl[level],
 						referenceFrame.width(level), referenceFrame.height(level),
 						level);
-			}
+			//}
 			
-			// Write point cloud to file
+			// TODO: Write point cloud to file
 //			try {
 //				TrackingReference.writePointCloudToFile("pointCloud-"+frame.id()+"-"+level+".xyz",
 //						referenceFrame.pointCloudLvl[level], referenceFrame.width(level), referenceFrame.height(level));
@@ -170,7 +171,8 @@ public class Tracker {
 			
 			float LM_lambda = this.lambdaInitial[level];
 
-			//System.out.println("L" + level + " - " + "0" + " " + lastError);
+			// TODO: check again
+			//System.out.println("L" + level + " - " + "last err" + " " + lastError);
 			
 			// For a maximum number of iterations
 			for (int iteration=0 ; iteration < maxItsPerLvl[level] ; iteration++) {
@@ -273,7 +275,7 @@ public class Tracker {
 
 		// Test writing original 3D point cloud
 //		try {
-//			referenceFrame.writePointCloudToFile("out1.xyz", referenceFrame.pointCloudLvl[0],
+//			referenceFrame.writePointCloudToFile("out1-"+frame.id()+".xyz", referenceFrame.pointCloudLvl[0],
 //					referenceFrame.width(0), referenceFrame.height(0));
 //		} catch (FileNotFoundException | UnsupportedEncodingException e) {
 //			e.printStackTrace();
@@ -306,7 +308,7 @@ public class Tracker {
 //		}
 		
 		
-		System.out.println("Vec6: " + Arrays.toString(SE3.ln(refToFrame)));
+		System.out.println("Vec6: " + Vec.printVec(SE3.ln(refToFrame)));
 		//System.out.println("Rotation: " + refToFrame.getRotationMat());
 		//System.out.println("Translation: " + refToFrame.getTranslationMat());
 		
@@ -339,6 +341,9 @@ public class Tracker {
 	 */
 	public float calculateResidualAndBuffers(TrackingReference referenceFrame,
 			Frame frame, SE3 frameToRefPose, int level) {
+		
+		System.out.println("F: " + frame.id() + "L: " + level);
+		
 		calculateResidualAndBuffersCount++;
 		
 		double fx = Constants.fx[level];
@@ -465,6 +470,7 @@ public class Tracker {
 		lastBadCount = badCount;
 		lastMeanRes = sumSignedRes / goodCount;
 		
+		System.out.println("calcResidualAndBuffers " + sumResUnweighted / goodCount);
 		
 		return sumResUnweighted / goodCount;
 	}
@@ -597,84 +603,84 @@ public class Tracker {
 	}
 	
 	// Entry point 2 used to test Tracker
-		public static void main(String[] args) {
-			
-			// Load OpenCV native library.
-			System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-			
-			// Set Camera parameters
-			Constants.setK(500, 500, 640/2, 480/2);
-			
-			
-			VideoCapture capture = new VideoCapture();
-			capture.open("keyboard-vid-trimmed.avi");
-			Mat mat = new Mat();
-			
-			Mat firstFrame = new Mat();
-			capture.read(firstFrame);
-			Imgproc.cvtColor(firstFrame, firstFrame, Imgproc.COLOR_RGB2GRAY);
+	public static void main(String[] args) {
+		
+		// Load OpenCV native library.
+		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+		
+		// Set Camera parameters
+		Constants.setK(500, 500, 640/2, 480/2);
+		
+		
+		VideoCapture capture = new VideoCapture();
+		capture.open("table-vid-trimmed.avi");
+		Mat mat = new Mat();
+		
+		Mat firstFrame = new Mat();
+		capture.read(firstFrame);
+		Imgproc.cvtColor(firstFrame, firstFrame, Imgproc.COLOR_RGB2GRAY);
 
-			Frame frame1 = new Frame(firstFrame);
-			TrackingReference refFrame = new TrackingReference(frame1);
+		Frame frame1 = new Frame(firstFrame);
+		TrackingReference refFrame = new TrackingReference(frame1);
+		
+		Tracker tracker = new Tracker();
+		
+		
+		// Write 3D points of camera center
+		PrintWriter writer = null;
+		try {
+			writer = new PrintWriter("3dpoints.xyz", "ASCII");
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		writer.println(3);
+		
+		int count = 0;
+		for(;;){
+			//System.out.println(count);
+			boolean success = capture.read(mat); //reads captured frame into the Mat image
 			
-			Tracker tracker = new Tracker();
-			
-			
-			// Write 3D points of camera center
-			PrintWriter writer = null;
-			try {
-				writer = new PrintWriter("3dpoints-keyboard.xyz", "ASCII");
-			} catch (FileNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (UnsupportedEncodingException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			if (!success || count >= 50) {
+				break;
 			}
-			writer.println(3);
+			Imgproc.cvtColor(mat, mat, Imgproc.COLOR_RGB2GRAY);
+			   
+			Frame frame = new Frame(mat);
 			
-			int count = 0;
-			for(;;){
-				//System.out.println(count);
-				boolean success = capture.read(mat); //reads captured frame into the Mat image
-				
-				if (!success || count >= 50) {
-					break;
-				}
-				Imgproc.cvtColor(mat, mat, Imgproc.COLOR_RGB2GRAY);
-				   
-				Frame frame = new Frame(mat);
-				
-				//Highgui.imwrite("Test-"+count+".jpg", frame.imageLvl[0]);
-				
-				System.out.println(refFrame.keyframe.id()+"-->"+frame.id());
-				
-				
-				SE3 se3 = tracker.trackFrame(refFrame, frame, SE3.exp(new double[]{0,0,0,0,0,0}));
-				
-				if (se3 == null) // Diverged
-					continue;
-				
-				System.out.println("Vec6: " + Arrays.toString(SE3.ln(se3)));
-				   
-				double[] se3Array = SE3.ln(se3);
-				
-				writer.printf("%.6f ", se3Array[0]);
-				writer.printf("%.6f ", se3Array[1]);
-				writer.printf("%.6f\n", se3Array[2]);
-				
-				writer.flush();
-   				
-				
-				count++;
-				
-			}
+			//Highgui.imwrite("Test-"+count+".jpg", frame.imageLvl[0]);
+			
+			System.out.println(refFrame.keyframe.id()+"-->"+frame.id());
 			
 			
-			writer.close();
+			SE3 se3 = tracker.trackFrame(refFrame, frame, SE3.exp(new double[]{0,0,0,0,0,0}));
 			
+			if (se3 == null) // Diverged
+				continue;
+			
+			System.out.println("Vec6: " + Arrays.toString(SE3.ln(se3)));
+			   
+			double[] se3Array = SE3.ln(se3);
+			
+			writer.printf("%.6f ", se3Array[0]);
+			writer.printf("%.6f ", se3Array[1]);
+			writer.printf("%.6f\n", se3Array[2]);
+			
+			writer.flush();
+			
+			
+			count++;
 			
 		}
+		
+		
+		writer.close();
+		
+		
+	}
 	
 	
 	

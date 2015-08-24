@@ -19,7 +19,7 @@ public class LiveSLAMWrapper {
 	public void loop() {
 		
 		VideoCapture capture = new VideoCapture();
-		capture.open("keyboard-vid-trimmed.avi");
+		capture.open("table-vid-trimmed.avi");
 		
 		while(true) {
 			Mat frame = new Mat();
@@ -89,7 +89,7 @@ public class LiveSLAMWrapper {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 		
 		// Set Camera parameters
-		Constants.setK(500, 500, 640/2, 480/2);
+		Constants.setK(748, 748, 319, 239);
 				
 		LiveSLAMWrapper liveSlamWrapper = new LiveSLAMWrapper();
 		liveSlamWrapper.loop();

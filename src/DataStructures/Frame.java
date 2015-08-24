@@ -17,7 +17,7 @@ public class Frame {
 
 	// Gray scale image
 	public Mat[] imageLvl;
-	public byte[][] imageArrayLvl; // Array of image data for fast reading
+	public float[][] imageArrayLvl; // Array of image data for fast reading
 
 	// Gradient
 	public Mat[] imageGradientXLvl;
@@ -82,7 +82,7 @@ public class Frame {
 		
 		// Initialize arrays
 		this.imageLvl = new Mat[Constants.PYRAMID_LEVELS];
-		this.imageArrayLvl = new byte[Constants.PYRAMID_LEVELS][];
+		this.imageArrayLvl = new float[Constants.PYRAMID_LEVELS][];
 		this.imageGradientXLvl = new Mat[Constants.PYRAMID_LEVELS];
 		this.imageGradientXArrayLvl = new float[Constants.PYRAMID_LEVELS][];
 		this.imageGradientYLvl = new Mat[Constants.PYRAMID_LEVELS];
@@ -92,23 +92,30 @@ public class Frame {
 		this.inverseDepthLvl = new float[Constants.PYRAMID_LEVELS][];
 		this.inverseDepthVarianceLvl = new float[Constants.PYRAMID_LEVELS][];
 		
+		
+
+		// Convert image to float type
+		image.convertTo(image, CvType.CV_32F);
+		
 		// Set level 0 image
 		this.imageLvl[0] = image;
-		this.imageArrayLvl[0] = new byte[(int) imageLvl[0].total()];
+		this.imageArrayLvl[0] = new float[(int) imageLvl[0].total()];
 		this.imageLvl[0].get(0, 0, imageArrayLvl[0]);
 		toSigned(imageArrayLvl[0]);
 		
 		// Set level 0 gradient
-		this.imageGradientXLvl[0] = gradientX(imageLvl[0]);
-		this.imageGradientYLvl[0] = gradientY(imageLvl[0]);
+		this.imageGradientXArrayLvl[0] = gradientX(imageArrayLvl[0], 0);
+		this.imageGradientYArrayLvl[0] = gradientY(imageArrayLvl[0], 0);
+		
+//		this.imageGradientXLvl[0] = new Mat();
+//		this.imageGradientYLvl[0] = new Mat();
+//		this.imageGradientXLvl[0].put(0, 0, imageGradientXArrayLvl[0]);
+//		this.imageGradientYLvl[0].put(0, 0, imageGradientYArrayLvl[0]);
+		
+		
 		// Max gradient
 		this.imageGradientMaxLvl[0] = gradientMax(imageGradientXLvl[0], imageGradientYLvl[0]);
 		
-		
-		this.imageGradientXArrayLvl[0] = new float[(int) imageGradientXLvl[0].total()];
-		this.imageGradientXLvl[0].get(0, 0, imageGradientXArrayLvl[0]);
-		this.imageGradientYArrayLvl[0] = new float[(int) imageGradientYLvl[0].total()];
-		this.imageGradientYLvl[0].get(0, 0, imageGradientYArrayLvl[0]);
 		this.imageGradientMaxArrayLvl[0] = new float[(int) imageGradientMaxLvl[0].total()];
 		this.imageGradientMaxLvl[0].get(0, 0, imageGradientMaxArrayLvl[0]);
 		
@@ -118,15 +125,26 @@ public class Frame {
 			// Image
 			this.imageLvl[i] = new Mat();
 			Imgproc.pyrDown(this.imageLvl[i-1], this.imageLvl[i]);
-			this.imageArrayLvl[i] = new byte[(int) imageLvl[i].total()];
+			this.imageArrayLvl[i] = new float[(int) imageLvl[i].total()];
 			this.imageLvl[i].get(0, 0, imageArrayLvl[i]);
 			toSigned(imageArrayLvl[i]);
 			
-			// Gradient, Max gradient
-			this.imageGradientXLvl[i] = gradientX(imageLvl[i]);
-			this.imageGradientYLvl[i] = gradientY(imageLvl[i]);
-			this.imageGradientMaxLvl[i] = gradientMax(imageGradientXLvl[i], imageGradientYLvl[i]);
+			// Gradient
+			this.imageGradientXArrayLvl[i] = gradientX(imageArrayLvl[i], i);
+			this.imageGradientYArrayLvl[i] = gradientY(imageArrayLvl[i], i);
 
+//			this.imageGradientXLvl[i] = new Mat();
+//			this.imageGradientYLvl[i] = new Mat();
+//			this.imageGradientXLvl[i].put(0, 0, imageGradientXArrayLvl[i]);
+//			this.imageGradientYLvl[i].put(0, 0, imageGradientYArrayLvl[i]);
+			
+			// Max gradient
+			
+			this.imageGradientMaxLvl[i] = gradientMax(imageGradientXLvl[i], imageGradientYLvl[i]);
+			
+			this.imageGradientMaxArrayLvl[i] = new float[(int) imageGradientMaxLvl[i].total()];
+			this.imageGradientMaxLvl[i].get(0, 0, imageGradientMaxArrayLvl[i]);
+			
 //			Imgproc.pyrDown(this.imageGradientXLvl[i-1], this.imageGradientXLvl[i]);
 //			Imgproc.pyrDown(this.imageGradientYLvl[i-1], this.imageGradientYLvl[i]);
 //			Imgproc.pyrDown(this.imageGradientMaxLvl[i-1], this.imageGradientMaxLvl[i]);
@@ -137,12 +155,7 @@ public class Frame {
 			//Highgui.imwrite("gradmax-"+this.id+"-"+i+".jpg", this.imageGradientMaxLvl[i]);
 			
 			
-			this.imageGradientXArrayLvl[i] = new float[(int) imageGradientXLvl[i].total()];
-			this.imageGradientXLvl[i].get(0, 0, imageGradientXArrayLvl[i]);
-			this.imageGradientYArrayLvl[i] = new float[(int) imageGradientYLvl[i].total()];
-			this.imageGradientYLvl[i].get(0, 0, imageGradientYArrayLvl[i]);
-			this.imageGradientMaxArrayLvl[i] = new float[(int) imageGradientMaxLvl[i].total()];
-			this.imageGradientMaxLvl[i].get(0, 0, imageGradientMaxArrayLvl[i]);
+			
 			
 		}
 	}
@@ -160,38 +173,30 @@ public class Frame {
 	}
 
 	// Returns gradient of image
-	public Mat gradientX(Mat image) {
-		Mat gradientX = new Mat();
-		Imgproc.Sobel(image, gradientX, CvType.CV_32F, 1, 0);
+	public float[] gradientX(float[] imageArrayLvl, int level) {
+		float[] imageGradientXArray = new float[imageArrayLvl.length];
+		int w = width(level);
+		int h = height(level);
 		
-//		Mat kernel = new Mat(1, 3, CvType.CV_32F){
-//							{
-//							put(0,0,-0.5);
-//							put(0,1,0);
-//							put(0,2,0.5);
-//							}
-//						};
-//         
-//      Imgproc.filter2D(image, gradientX, CvType.CV_32F, kernel);
+		for (int i=w ; i<=w*(h-1) ; i++) {
+			imageGradientXArray[i] =  0.5f*(imageArrayLvl[i-1] - imageArrayLvl[i+1]);
+		}
 		
-		return gradientX;
+		return imageGradientXArray;
 	}
 	
-	public Mat gradientY(Mat image) {
-		Mat gradientY = new Mat();
-		Imgproc.Sobel(image, gradientY, CvType.CV_32F, 0, 1);
+	public float[] gradientY(float[] imageArrayLvl, int level) {
+		float[] imageGradientYArray = new float[imageArrayLvl.length];
+		int w = width(level);
+		int h = height(level);
+
+		System.out.println(w + " "+ h);
 		
-//		Mat kernel = new Mat(3, 1, CvType.CV_32F){
-//							{
-//							put(0, 0,-0.5);
-//							put(1, 0,0);
-//							put(2, 0,0.5);
-//							}
-//						};
-//         
-//      Imgproc.filter2D(image, gradientY, CvType.CV_32F, kernel);
+		for (int i=w ; i<w*(h-1) ; i++) {
+			imageGradientYArray[i] =  0.5f*(imageArrayLvl[i+w] - imageArrayLvl[i-w]);
+		}
 		
-		return gradientY;
+		return imageGradientYArray;
 	}
 	
 //	public int width() {
@@ -212,9 +217,10 @@ public class Frame {
 	
 
 	// Applies & 0xFF to each element, to convert from unsigned to signed values.
-	public static void toSigned(byte[] byteArray) {
-		for (int i=0 ; i<byteArray.length ; i++) {
-			byteArray[i] &= 0xFF;
+	public static void toSigned(float[] imageArrayLvl2) {
+		for (int i=0 ; i<imageArrayLvl2.length ; i++) {
+			//imageArrayLvl2[i] &= 0xFF;
+			//TODO: 
 		}
 	}
 
