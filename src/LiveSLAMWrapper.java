@@ -1,3 +1,5 @@
+import java.io.File;
+
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.highgui.Highgui;
@@ -13,11 +15,34 @@ public class LiveSLAMWrapper {
 	int imageSeqNumber = 0;
 	LSDSLAM lsdSlam = new LSDSLAM();
 	
+	final String imagesDirectory = "images";
+	
 	public LiveSLAMWrapper() {
 	}
 	
 	public void loop() {
 		
+		// Use images in images directory
+		String currentDir = System.getProperty("user.dir");
+		final File folder = new File(currentDir + "/" + imagesDirectory);
+		
+		for (final File fileEntry : folder.listFiles()) {
+	        if (fileEntry.isDirectory()) {
+	        } else {
+	        	System.out.println(imagesDirectory + "/" + fileEntry.getName());
+	            Mat frame = Highgui.imread(imagesDirectory + "/" + fileEntry.getName());
+	            
+	            if (frame.empty()) {
+	            	System.out.println("Invalid image frame");
+	            	continue;
+	            }
+	            
+				// Process image frame
+				newImageCallback(frame);
+	        }
+	    }
+		
+		/*
 		VideoCapture capture = new VideoCapture();
 		capture.open("table-vid-trimmed.avi");
 		
@@ -32,7 +57,7 @@ public class LiveSLAMWrapper {
 			// Process image frame
 			newImageCallback(frame);
 		}
-		
+		*/
 		
 		// Read image
 //		Mat image1 = null;
@@ -89,8 +114,10 @@ public class LiveSLAMWrapper {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 		
 		// Set Camera parameters
-		Constants.setK(748, 748, 319, 239);
-				
+		//Constants.setK(746.831, 746.442, 318.502, 238.502);
+		Constants.setK(748.000000, 748.000000, 319.000000, 239.000000);
+		
+		
 		LiveSLAMWrapper liveSlamWrapper = new LiveSLAMWrapper();
 		liveSlamWrapper.loop();
 		

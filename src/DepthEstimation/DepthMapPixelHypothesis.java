@@ -31,6 +31,18 @@ public class DepthMapPixelHypothesis {
 		blacklisted = 0;
 	}
 	
+	// Copy constructor
+	public DepthMapPixelHypothesis(DepthMapPixelHypothesis p) {
+		this.isValid = p.isValid;
+		this.blacklisted = p.blacklisted;
+		this.nextStereoFrameMinID = p.nextStereoFrameMinID;
+		this.validity_counter = p.validity_counter;
+		this.idepth = p.idepth;
+		this.idepth_var = p.idepth_var;
+		this.idepth_smoothed = p.idepth_smoothed;
+		this.idepth_var_smoothed = p.idepth_var_smoothed;
+	}
+	
 	public DepthMapPixelHypothesis(float my_idepth,
 								   float my_idepth_smoothed,
 								   float my_idepth_var,

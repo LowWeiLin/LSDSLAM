@@ -29,20 +29,9 @@ public class TrackingReference {
 	
 	public TrackingReference(Frame frame) {
 		this.keyframe = frame;
-		
-		initialize();
 	}
 	
-	public void initialize() {
-		
-		for (int i=0 ; i<Constants.PYRAMID_LEVELS ; i++) {
-			int size = (int) keyframe.imageLvl[i].total();
-			this.keyframe.inverseDepthLvl[i] = new float[size];
-			this.keyframe.inverseDepthVarianceLvl[i] = new float[size];
-			randomizeInverseDepth(i);
-		}
-	}
-	
+	/*
 	public void randomizeInverseDepth(int level) {
 		// TODO: do random
 		// Set to 1s for now.
@@ -55,7 +44,7 @@ public class TrackingReference {
 			this.keyframe.inverseDepthLvl[level][i] = 0.5f + rand.nextFloat();
 		}
 		
-		/*
+		///*
 		// Use tsukuba ground truth as depth.
 		Mat tsukubaGroundTruth = Highgui.imread("test0.jpg");
 		Imgproc.cvtColor(tsukubaGroundTruth, tsukubaGroundTruth, Imgproc.COLOR_RGB2GRAY);
@@ -74,7 +63,7 @@ public class TrackingReference {
 				this.frame.inverseDepthLvl[level][i] = 0.5f + rand.nextFloat();
 			}
 		}
-		*/
+		//
 
 		
 		// Test drawing a box
@@ -93,10 +82,12 @@ public class TrackingReference {
 		
 		
 		
+		
 		Arrays.fill(this.keyframe.inverseDepthVarianceLvl[level], Constants.VAR_RANDOM_INIT_INITIAL);//TODO: increase value?
 		
 		
 	}
+	*/
 	
 	/**
 	 * Create 3D points from inverse depth values
@@ -104,7 +95,7 @@ public class TrackingReference {
 	public jeigen.DenseMatrix[] createPointCloud(float[] inverseDepth,
 			float[] inverseDepthVariance, int width, int height, int level) {
 		
-		System.out.println("createPointCloud: " + level);
+		//System.out.println("createPointCloud: " + level);
 		
 		jeigen.DenseMatrix[] pointCloud = new jeigen.DenseMatrix[width*height];
 		
@@ -112,6 +103,8 @@ public class TrackingReference {
 		double fyInv = Constants.fyInv[level];
 		double cxInv = Constants.cxInv[level];
 		double cyInv = Constants.cyInv[level];
+		
+		int pointsNum = 0;
 		
 		for (int y=1 ; y<height-1 ; y++) {
 			for (int x=1 ; x<width-1 ; x++) {
@@ -135,14 +128,11 @@ public class TrackingReference {
 						new double[][]{{fxInv*x + cxInv},
 									   {fyInv*y + cyInv},
 									   {1}})).div(idepth);
-				if (x==3 && y==3){
-					System.out.println("Pt: " + (fxInv*x + cxInv) + " " + 
-									   		(fyInv*y + cyInv) + " " +
-									   		1);
-				}
+				
+				pointsNum ++;
 			}
 		}
-		
+		System.out.println("MakePointCloud: " + level + " " + pointsNum);
 		return pointCloud;
 	}
 	
@@ -178,6 +168,88 @@ public class TrackingReference {
 			writer.printf("%.6f\n", pointCloud[i].get(2, 0));
 			
  		}
+		
+		writer.close();
+	}
+	
+	public static void writePointCloudToFile(String filename, TrackingReference ref) throws FileNotFoundException, UnsupportedEncodingException {
+		PrintWriter writer = new PrintWriter(filename, "ASCII");
+	
+		writer.println(3);
+		
+		float[] idepth = ref.keyframe.inverseDepthLvl[0];
+		float[] idepth_var = ref.keyframe.inverseDepthVarianceLvl[0];
+		
+		int width = ref.width(0);
+		int height = ref.height(0);
+		
+		int size = ref.width(0) * ref.height(0);
+		
+		double fxi = Constants.fxInv[0];
+		double fyi = Constants.fyInv[0];
+		double cxi = Constants.cxInv[0];
+		double cyi = Constants.cyInv[0];
+		
+		for(int y=1;y<height-1;y++) {
+			for(int x=1;x<width-1;x++){
+				if(idepth[x+y*width] <= 0)
+					continue;
+
+				float depth = 1 / idepth[x+y*width];
+				float depth4 = depth*depth; depth4*= depth4;
+
+
+				//if(idepth_var[x+y*width] * depth4 > my_scaledTH)
+				//	continue;
+
+				//if(idepth_var[x+y*width] * depth4 * my_scale*my_scale > my_absTH)
+				//	continue;
+
+//				if(my_minNearSupport > 1)
+//				{
+//					int nearSupport = 0;
+//					for(int dx=-1;dx<2;dx++)
+//						for(int dy=-1;dy<2;dy++)
+//						{
+//							int idx = x+dx+(y+dy)*width;
+//							if(originalInput[idx].idepth > 0)
+//							{
+//								float diff = originalInput[idx].idepth - 1.0f / depth;
+//								if(diff*diff < 2*originalInput[x+y*width].idepth_var)
+//									nearSupport++;
+//							}
+//						}
+//
+//					if(nearSupport < my_minNearSupport)
+//						continue;
+//				}
+
+//				tmpBuffer[vertexBufferNumPoints].point[0] = (x*fxi + cxi) * depth;
+//				tmpBuffer[vertexBufferNumPoints].point[1] = (y*fyi + cyi) * depth;
+//				tmpBuffer[vertexBufferNumPoints].point[2] = depth;
+//
+//				tmpBuffer[vertexBufferNumPoints].color[3] = 100;
+//				tmpBuffer[vertexBufferNumPoints].color[2] = originalInput[x+y*width].color[0];
+//				tmpBuffer[vertexBufferNumPoints].color[1] = originalInput[x+y*width].color[1];
+//				tmpBuffer[vertexBufferNumPoints].color[0] = originalInput[x+y*width].color[2];
+//
+//				vertexBufferNumPoints++;
+//				displayed++;
+				
+
+				writer.printf("%.6f ",(x*fxi + cxi) * depth);
+				writer.printf("%.6f ", (y*fyi + cyi) * depth);
+				writer.printf("%.6f\n", depth);
+				
+			}
+		}
+//		for (int i=0 ; i<size ; i++) {
+//			
+//			writer.printf("%.6f ", pointCloud[i].get(0, 0));
+//			writer.printf("%.6f ", pointCloud[i].get(1, 0));
+//			writer.printf("%.6f\n", pointCloud[i].get(2, 0));
+//			
+// 		}
 		
 		writer.close();
 	}

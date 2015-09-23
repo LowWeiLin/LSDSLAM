@@ -29,11 +29,11 @@ public class Utils {
 		float dxdy = dx*dy;
 		int bp = ix+iy*width;
 		
-		float res =   dxdy 			* (float)((int)dataArray[bp+1+width])
-					+ (dy-dxdy) 	* (float)((int)dataArray[bp+width])
-					+ (dx-dxdy) 	* (float)((int)dataArray[bp+1])
-					+ (1-dx-dy+dxdy)* (float)((int)dataArray[bp]);
-
+		float res =   dxdy 			* dataArray[bp+1+width]
+					+ (dy-dxdy) 	* dataArray[bp+width]
+					+ (dx-dxdy) 	* dataArray[bp+1]
+					+ (1-dx-dy+dxdy)* dataArray[bp];
+		//System.out.println("interpolatedValue: " + dataArray[bp]);
 		return res;
 		
 	}

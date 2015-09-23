@@ -4,6 +4,7 @@ import jeigen.DenseMatrix;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Size;
 import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
 
@@ -93,7 +94,6 @@ public class Frame {
 		this.inverseDepthVarianceLvl = new float[Constants.PYRAMID_LEVELS][];
 		
 		
-
 		// Convert image to float type
 		image.convertTo(image, CvType.CV_32F);
 		
@@ -101,7 +101,7 @@ public class Frame {
 		this.imageLvl[0] = image;
 		this.imageArrayLvl[0] = new float[(int) imageLvl[0].total()];
 		this.imageLvl[0].get(0, 0, imageArrayLvl[0]);
-		toSigned(imageArrayLvl[0]);
+		//toSigned(imageArrayLvl[0]);
 		
 		// Set level 0 gradient
 		this.imageGradientXArrayLvl[0] = gradientX(imageArrayLvl[0], 0);
@@ -114,61 +114,106 @@ public class Frame {
 		
 		
 		// Max gradient
-		this.imageGradientMaxLvl[0] = gradientMax(imageGradientXLvl[0], imageGradientYLvl[0]);
-		
-		this.imageGradientMaxArrayLvl[0] = new float[(int) imageGradientMaxLvl[0].total()];
-		this.imageGradientMaxLvl[0].get(0, 0, imageGradientMaxArrayLvl[0]);
+		this.imageGradientMaxArrayLvl[0] = gradientMax(0);
 		
 		// Generate lower levels
 		for (int i=1 ; i<Constants.PYRAMID_LEVELS ; i++) {
 			
 			// Image
-			this.imageLvl[i] = new Mat();
-			Imgproc.pyrDown(this.imageLvl[i-1], this.imageLvl[i]);
-			this.imageArrayLvl[i] = new float[(int) imageLvl[i].total()];
-			this.imageLvl[i].get(0, 0, imageArrayLvl[i]);
-			toSigned(imageArrayLvl[i]);
+
+			imageArrayLvl[i] = new float[imageArrayLvl[i-1].length/4];
+			buildImageLevel(imageArrayLvl[i-1], imageArrayLvl[i], i);
+			this.imageLvl[i] = new Mat(new Size(width(i-1)/2, height(i-1)/2), CvType.CV_32F);
+			this.imageLvl[i].put(0,0,imageArrayLvl[i]);
+			
+			//this.imageLvl[i] = new Mat();
+			//Imgproc.pyrDown(this.imageLvl[i-1], this.imageLvl[i]);
+			
+			//this.imageArrayLvl[i] = new float[(int) imageLvl[i].total()];
+			//this.imageLvl[i].get(0, 0, imageArrayLvl[i]);
+			//toSigned(imageArrayLvl[i]);
 			
 			// Gradient
 			this.imageGradientXArrayLvl[i] = gradientX(imageArrayLvl[i], i);
 			this.imageGradientYArrayLvl[i] = gradientY(imageArrayLvl[i], i);
+			this.imageGradientXLvl[i] = new Mat(new Size(width(i), height(i)), CvType.CV_32F);
+			this.imageGradientXLvl[i].put(0,0,imageGradientXArrayLvl[i]);
+			this.imageGradientYLvl[i] = new Mat(new Size(width(i), height(i)), CvType.CV_32F);
+			this.imageGradientYLvl[i].put(0,0,imageGradientYArrayLvl[i]);
 
-//			this.imageGradientXLvl[i] = new Mat();
-//			this.imageGradientYLvl[i] = new Mat();
-//			this.imageGradientXLvl[i].put(0, 0, imageGradientXArrayLvl[i]);
-//			this.imageGradientYLvl[i].put(0, 0, imageGradientYArrayLvl[i]);
-			
 			// Max gradient
+			this.imageGradientMaxArrayLvl[i] = gradientMax(i);
+			this.imageGradientMaxLvl[i] = new Mat(new Size(width(i), height(i)), CvType.CV_32F);
+			this.imageGradientMaxLvl[i].put(0,0,imageGradientMaxArrayLvl[i]);
 			
-			this.imageGradientMaxLvl[i] = gradientMax(imageGradientXLvl[i], imageGradientYLvl[i]);
-			
-			this.imageGradientMaxArrayLvl[i] = new float[(int) imageGradientMaxLvl[i].total()];
-			this.imageGradientMaxLvl[i].get(0, 0, imageGradientMaxArrayLvl[i]);
-			
-//			Imgproc.pyrDown(this.imageGradientXLvl[i-1], this.imageGradientXLvl[i]);
-//			Imgproc.pyrDown(this.imageGradientYLvl[i-1], this.imageGradientYLvl[i]);
-//			Imgproc.pyrDown(this.imageGradientMaxLvl[i-1], this.imageGradientMaxLvl[i]);
-			
-			
-			//Highgui.imwrite("gradX-"+this.id+"-"+i+".jpg", this.imageGradientXLvl[i]);
-			//Highgui.imwrite("gradY-"+this.id+"-"+i+".jpg", this.imageGradientYLvl[i]);
-			//Highgui.imwrite("gradmax-"+this.id+"-"+i+".jpg", this.imageGradientMaxLvl[i]);
-			
-			
+//			Highgui.imwrite("img-"+this.id+"-"+i+".jpg", this.imageLvl[i]);
+//			Highgui.imwrite("gradX-"+this.id+"-"+i+".jpg", this.imageGradientXLvl[i]);
+//			Highgui.imwrite("gradY-"+this.id+"-"+i+".jpg", this.imageGradientYLvl[i]);
+//			Highgui.imwrite("gradmax-"+this.id+"-"+i+".jpg", this.imageGradientMaxLvl[i]);
 			
 			
 		}
 	}
 	
-	Mat tempMat = new Mat();
-	private Mat gradientMax(Mat gradX, Mat gradY) {
-		Mat gradientMax = new Mat();
+	private float[] gradientMax(int level) {
 		
-		Core.multiply(gradX, gradX, gradientMax);
-		Core.multiply(gradY, gradY, tempMat);
-		Core.add(gradientMax, tempMat, gradientMax);
+		int w = width(level);
+		int h = height(level);
 		
-		Core.sqrt(gradientMax, gradientMax);
+		float[] gradientMax = new float[w * h];
+		float[] gradientMaxTemp = new float[w * h];
+		
+		// 1. write abs gradients in real data.
+		for(int i=w ; i<w*(h-1) ; i++) {
+			float dx = imageGradientXArrayLvl[level][i];
+			float dy = imageGradientYArrayLvl[level][i];
+			gradientMax[i] = (float) Math.sqrt(dx*dx + dy*dy);
+		}
+		
+		// Steps 2 and 3 for setting pixel to largest gradient in 3x3 neighborhood
+		
+		// 2. smear up/down direction into temp buffer
+		for (int i=w+1 ; i<w*(h-1)-1 ; i++) {
+			float g1 = gradientMax[i-w]; // gradient of pixel on top
+			float g2 = gradientMax[i];	 // gradient of current pixel
+			if(g1 < g2) {
+				g1 = g2;
+			}
+			float g3 = gradientMax[i+w]; // gradient of pixel below
+			
+			// Set current gradient to largest gradient of top/current/bottom pixel
+			if(g1 < g3) {
+				gradientMaxTemp[i] = g3;
+			} else {
+				gradientMaxTemp[i] = g1;
+			}
+		}
+		
+		int numMappablePixels = 0;
+		// 2. smear left/right direction into real data
+		for (int i=w+1 ; i<w*(h-1)-1 ; i++) {
+			float g1 = gradientMaxTemp[i-1]; // Pixel on left
+			float g2 = gradientMaxTemp[i];	 // Current pixel
+			if(g1 < g2) {
+				g1 = g2;
+			}
+			float g3 = gradientMaxTemp[i+1]; // Pixel on right
+			// Set to largest gradient
+			if(g1 < g3) {
+				gradientMax[i] = g3;
+				if(g3 >= Constants.MIN_ABS_GRAD_CREATE)
+					numMappablePixels++;
+			} else {
+				gradientMax[i] = g1;
+				if(g1 >= Constants.MIN_ABS_GRAD_CREATE)
+					numMappablePixels++;
+			}
+		}
+
+		if(level==0)
+			this.numMappablePixels = numMappablePixels;
+		
+		
 		return gradientMax;
 	}
 
@@ -189,8 +234,6 @@ public class Frame {
 		float[] imageGradientYArray = new float[imageArrayLvl.length];
 		int w = width(level);
 		int h = height(level);
-
-		System.out.println(w + " "+ h);
 		
 		for (int i=w ; i<w*(h-1) ; i++) {
 			imageGradientYArray[i] =  0.5f*(imageArrayLvl[i+w] - imageArrayLvl[i-w]);
@@ -217,12 +260,12 @@ public class Frame {
 	
 
 	// Applies & 0xFF to each element, to convert from unsigned to signed values.
-	public static void toSigned(float[] imageArrayLvl2) {
-		for (int i=0 ; i<imageArrayLvl2.length ; i++) {
-			//imageArrayLvl2[i] &= 0xFF;
-			//TODO: 
-		}
-	}
+//	public static void toSigned(float[] imageArrayLvl2) {
+//		for (int i=0 ; i<imageArrayLvl2.length ; i++) {
+//			//imageArrayLvl2[i] &= 0xFF;
+//			//TODO: 
+//		}
+//	}
 
 	public void setDepth(DepthMapPixelHypothesis[] newDepth) {
 		
@@ -242,6 +285,7 @@ public class Frame {
 			if (newDepth[i].isValid && newDepth[i].idepth_smoothed >= -0.05) {
 				inverseDepthLvl[0][i] = newDepth[i].idepth_smoothed;
 				inverseDepthVarianceLvl[0][i] = newDepth[i].idepth_var_smoothed;
+				
 				numIdepth++;
 				sumIdepth += newDepth[i].idepth_smoothed;
 			} else {
@@ -264,89 +308,112 @@ public class Frame {
 		// Do lower levels
 		
 		for (int level=1 ; level<Constants.PYRAMID_LEVELS ; level++) {
-			int pixelsLvl = width(level)*height(level);
-			// Initialize arrays
-			if (inverseDepthLvl[level] == null) {
-				inverseDepthLvl[level] = new float[pixelsLvl];
-			}
-			if (inverseDepthVarianceLvl[level] == null) {
-				inverseDepthVarianceLvl[level] = new float[pixelsLvl];
-			}
-			
+			buildIDepthAndIDepthVar(level);
+		}
+		
+	}
+	
+	public void buildIDepthAndIDepthVar(int level) {
+		if (level <= 0 ) {
+			System.err.println("buildIDepthAndIDepthVar: Invalid level parameter!");
+			return;
+		}
+		//System.out.println("buildIDepthAndIDepthVar: building level " + level);
+		
+		int width = width(level);
+		int height = height(level);
+		
+		int sw = width(level - 1);
+		
+		inverseDepthLvl[level] = new float[width*height];
+		inverseDepthVarianceLvl[level] = new float[width*height];
+		
+		
+		float[] idepthSource = inverseDepthLvl[level - 1];
+		float[] idepthVarSource = inverseDepthVarianceLvl[level - 1];
 
-			float[] idepthSource = inverseDepthLvl[level - 1];
-			float[] idepthVarSource = inverseDepthVarianceLvl[level - 1];
-			float[] idepthDest = inverseDepthLvl[level];
-			float[] idepthVarDest = inverseDepthVarianceLvl[level];
-			
-			int width = width(level);
-			int height = height(level);
-			int sw = width(level - 1);
-			
-			for(int y=0;y<height;y++) {
-				for(int x=0;x<width;x++) {
-					int idx = 2*(x+y*sw);
-					int idxDest = (x+y*width);
+		float[] idepthDest = inverseDepthLvl[level];
+		float[] idepthVarDest = inverseDepthVarianceLvl[level];
 
-					float idepthSumsSum = 0;
-					float ivarSumsSum = 0;
-					int num=0;
+		
+		for(int y=0 ; y<height ; y++) {
+			for(int x=0 ; x<width ; x++) {
+				int idx = 2*(x+y*sw);		// Index for level - 1
+				int idxDest = (x+y*width);	// Index for level
+				
+				// Sums 4 pixels
+				float idepthSumsSum = 0;
+				float ivarSumsSum = 0;
+				int num=0;
+				
+				// build sums
+				float ivar;
+				float var = idepthVarSource[idx];
+				if(var > 0) {
+					ivar = 1.0f / var;
+					ivarSumsSum += ivar;
+					idepthSumsSum += ivar * idepthSource[idx];
+					num++;
+				}
 
-					// build sums
-					float ivar;
-					float var = idepthVarSource[idx];
-					if(var > 0)
-					{
-						ivar = 1.0f / var;
-						ivarSumsSum += ivar;
-						idepthSumsSum += ivar * idepthSource[idx];
-						num++;
-					}
+				var = idepthVarSource[idx+1];
+				if(var > 0) {
+					ivar = 1.0f / var;
+					ivarSumsSum += ivar;
+					idepthSumsSum += ivar * idepthSource[idx+1];
+					num++;
+				}
 
-					var = idepthVarSource[idx+1];
-					if(var > 0)
-					{
-						ivar = 1.0f / var;
-						ivarSumsSum += ivar;
-						idepthSumsSum += ivar * idepthSource[idx+1];
-						num++;
-					}
+				var = idepthVarSource[idx+sw];
+				if(var > 0) {
+					ivar = 1.0f / var;
+					ivarSumsSum += ivar;
+					idepthSumsSum += ivar * idepthSource[idx+sw];
+					num++;
+				}
 
-					var = idepthVarSource[idx+sw];
-					if(var > 0)
-					{
-						ivar = 1.0f / var;
-						ivarSumsSum += ivar;
-						idepthSumsSum += ivar * idepthSource[idx+sw];
-						num++;
-					}
-
-					var = idepthVarSource[idx+sw+1];
-					if(var > 0)
-					{
-						ivar = 1.0f / var;
-						ivarSumsSum += ivar;
-						idepthSumsSum += ivar * idepthSource[idx+sw+1];
-						num++;
-					}
-					
-					if(num > 0)
-					{
-						float depth = ivarSumsSum / idepthSumsSum;
-						idepthDest[idxDest] = 1.0f / depth;
-						idepthVarDest[idxDest] = num / ivarSumsSum;
-					}
-					else
-					{
-						idepthDest[idxDest] = -1;
-						idepthVarDest[idxDest] = -1;
-					}
+				var = idepthVarSource[idx+sw+1];
+				if(var > 0) {
+					ivar = 1.0f / var;
+					ivarSumsSum += ivar;
+					idepthSumsSum += ivar * idepthSource[idx+sw+1];
+					num++;
+				}
+				
+				if(num > 0) {
+					float depth = ivarSumsSum / idepthSumsSum;
+					idepthDest[idxDest] = 1.0f / depth;
+					idepthVarDest[idxDest] = num / ivarSumsSum;
+				} else {
+					idepthDest[idxDest] = -1;
+					idepthVarDest[idxDest] = -1;
 				}
 			}
+		}
+		
+		
+	}
+	
+	public void buildImageLevel(float[] imageArraySrc, float[] imageArrayDst, int level) {
 
-			//idepthValid[level] = true;
-			//idepthVarValid[level] = true;
-			
+		int width = width(level - 1);
+		int height = height(level - 1);
+		float[] source = imageArraySrc;
+		float[] dest = imageArrayDst;
+		
+
+		int wh = width*height;
+		int srcIdx = 0;
+		int dstIdx = 0;
+		for(int y=0;y<wh;y+=width*2) {
+			for(int x=0;x<width;x+=2) {
+				srcIdx = x + y;
+				dest[dstIdx] = (source[srcIdx] +
+						source[srcIdx+1] +
+						source[srcIdx+width] +
+						source[srcIdx+1+width]) * 0.25f;
+				dstIdx++;
+			}
 		}
 		
 	}
@@ -368,7 +435,9 @@ public class Frame {
 		otherToThis_R_row2 = thisToOther_R.col(2);
 
 		distSquared = Vec.dot(otherToThis.getTranslation(), otherToThis.getTranslation());
-
+		
+		//System.out.println("distSquared " + distSquared);
+		
 		referenceID = other.id();
 		referenceLevel = level;
 	}

@@ -30,8 +30,8 @@ public class LGS6 {
 	}
 	
 	public void finish() {
-	    A = A.div(numConstraints);
-	    b = b.div(numConstraints);
+	    A = A.div((double)numConstraints);
+	    b = b.div((double)numConstraints);
 	    error /= (float) numConstraints;
 	}
 	

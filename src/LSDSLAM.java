@@ -1,3 +1,4 @@
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.LinkedList;
 
@@ -90,13 +91,13 @@ public class LSDSLAM {
 
 		// DO TRACKING & Show tracking result.
 		
-		// TODO: get initial estimate
+		System.out.println("InitEst1: " + Arrays.toString(SE3.ln(trackingReferencePose.getCamToWorld().getSE3())));
+		System.out.println("InitEst2: " + Arrays.toString(SE3.ln(keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)
+														.getCamToWorld().getSE3())));
+		
 		SE3 frameToReference_initialEstimate = 
 				trackingReferencePose.getCamToWorld().inverse().mul(
 					keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1).getCamToWorld()).getSE3();
-
-		// Just use 0 for now.
-		//SE3 frameToReference_initialEstimate = SE3.exp(new double[]{0,0,0,0,0,0});
 
 		SE3 newRefToFrame_poseUpdate = tracker.trackFrame(
 				trackingReference,
