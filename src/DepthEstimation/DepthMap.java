@@ -275,6 +275,7 @@ public class DepthMap {
 				//
 				
 				int idx = x+y*width;
+				//System.out.println(idx);
 				DepthMapPixelHypothesis target = currentDepthMap[idx];
 				boolean hasHypothesis = target.isValid;
 
@@ -394,6 +395,8 @@ public class DepthMap {
 		//System.out.println("DepthMap-observeDepthUpdate");
 		DepthMapPixelHypothesis target = currentDepthMap[idx];
 		Frame refFrame;
+		
+		//System.out.println("observeDepthUpdate1 " + x + ", " + y);
 
 		// Keyframe was not used before
 		if(!activeKeyFrameIsReactivated) {
@@ -418,17 +421,19 @@ public class DepthMap {
 		
 
 		//TODO: implement
-//		if(refFrame.getTrackingParent() == activeKeyFrame) {
-//			boolean[] wasGoodDuringTracking = refFrame.refPixelWasGoodNoCreate();
-//			
-//			if(wasGoodDuringTracking != null && 
-//					!wasGoodDuringTracking[(x >> Constants.SE3TRACKING_MIN_LEVEL) + 
-//					                       (width >> Constants.SE3TRACKING_MIN_LEVEL)*
-//					                       (y >> Constants.SE3TRACKING_MIN_LEVEL)]) {
-//				return false;
-//			}
-//		}
+		if(refFrame.getTrackingParent() == activeKeyFrame) {
+			boolean[] wasGoodDuringTracking = refFrame.refPixelWasGoodNoCreate();
+			
+			if(wasGoodDuringTracking != null && 
+					!wasGoodDuringTracking[(x >> Constants.SE3TRACKING_MIN_LEVEL) + 
+					                       (width >> Constants.SE3TRACKING_MIN_LEVEL)*
+					                       (y >> Constants.SE3TRACKING_MIN_LEVEL)]) {
+				return false;
+			}
+		}
 		
+
+		//System.out.println("observeDepthUpdate2 " + x + ", " + y);
 		
 		// Get epipolar line
 		float epx, epy;
@@ -443,7 +448,7 @@ public class DepthMap {
 			epx = epl[0];
 			epy = epl[1];
 		}
-		System.out.println("EPL: " + x + "," + y + " - " + epx + ", " + epy );
+		//System.out.println("EPL: " + x + "," + y + " - " + epx + ", " + epy );
 		
 		// Limits for search??
 		// which exact point to track, and where from.
@@ -526,7 +531,7 @@ public class DepthMap {
 			float w = result_var / (result_var + id_var);
 			float new_idepth = (1.0f-w)*result_idepth + w*target.idepth;
 
-			
+			/*
 			System.out.println(x + ", " + y +" obs:" + target.idepth + "-->" + new_idepth);
 			System.out.println(x + ", " + y +" res_idepth:" + result_idepth +
 											 " var:" + result_var +
@@ -535,8 +540,8 @@ public class DepthMap {
 					+ epx + ", " + epy
 					+ min_idepth + " " + target.idepth_smoothed + " " + max_idepth
 					+ "] " +
-					+ error );		
-			
+					+ error );
+			*/
 			
 			target.idepth = (float) UNZERO(new_idepth);
 			
@@ -588,6 +593,14 @@ public class DepthMap {
 		double cx = Constants.cx[0];
 		double cy = Constants.cy[0];
 		
+		
+		//System.out.println("makeAndCheckEPL: " + x + "," + y);
+		/*
+		System.out.println("makeAndCheckEPL: " + fx + "," + fy + "," + cx + "," + cy);
+		System.out.println("makeAndCheckEPL: " + ref.thisToOther_t.get(0,0) + ","
+											   + ref.thisToOther_t.get(1,0) + ","
+										   	   + ref.thisToOther_t.get(2,0));
+		*/
 
 		// ======= make epl ========
 		// calculate the plane spanned by the two camera centers and the point (x,y,1)
@@ -634,8 +647,6 @@ public class DepthMap {
 		
 		float pepx = (float) (epx * fac);
 		float pepy = (float) (epy * fac);
-		
-		System.out.println(fx + ", " + fy + ", " + cx + ", " + cy);
 		
 		
 		//System.out.println("EPL GOOD");

@@ -1,6 +1,7 @@
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.text.DecimalFormat;
 import java.util.Arrays;
 
 import jeigen.DenseMatrix;
@@ -151,12 +152,14 @@ public class Tracker {
 			//}
 			
 			// TODO: Write point cloud to file
-			try {
-				TrackingReference.writePointCloudToFile("pointCloud-"+frame.id()+"-"+level+".xyz",
-						referenceFrame.pointCloudLvl[level], referenceFrame.width(level), referenceFrame.height(level));
-			} catch (FileNotFoundException | UnsupportedEncodingException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			if (level == 1) {
+				try {
+					TrackingReference.writePointCloudToFile("pointCloud-"+frame.id()+"-"+level+".xyz",
+							referenceFrame.pointCloudLvl[level], referenceFrame.width(level), referenceFrame.height(level));
+				} catch (FileNotFoundException | UnsupportedEncodingException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
 //			try {
 //				TrackingReference.writePointCloudToFile("pointCloud-"+frame.id()+"-"+level+".xyz",
@@ -167,7 +170,10 @@ public class Tracker {
 //			}
 			
 			
-			calculateResidualAndBuffers(referenceFrame, frame, refToFrame, level);
+			calculateResidualAndBuffers(referenceFrame,
+										frame,
+										refToFrame,
+										level);
 			
 			// Diverge when amount of pixels successfully warped into new frame < some amount
 			if(warpedCount < Constants.MIN_GOODPERALL_PIXEL_ABSMIN * 
@@ -198,8 +204,8 @@ public class Tracker {
 					
 					// Solve LS to get increment
 					jeigen.DenseMatrix inc = calcIncrement(ls, LM_lambda);
-					//System.out.println(incTry + " : " + LM_lambda);
-
+					//System.out.println(incTry + " : " + LM_lambda + inc);
+					
 					// Apply increment
 					SE3 newRefToFrame = SE3.exp(Vec.vec6ToArray(inc));
 					newRefToFrame.mulEq(refToFrame);
@@ -208,7 +214,10 @@ public class Tracker {
 					
 					
 					// Re-evaluate residual
-					calculateResidualAndBuffers(referenceFrame, frame, newRefToFrame, level);
+					calculateResidualAndBuffers(referenceFrame,
+							frame,
+							newRefToFrame,
+							level);
 					
 					
 					// Check for divergence
@@ -288,13 +297,11 @@ public class Tracker {
 			referenceFrame.keyframe.numFramesTrackedOnThis++;
 
 		
-
-		refToFrame = SE3.inverse(SE3.exp(new double[]{-0.002256,
-										-0.00616586,
-										0.000779957,
-										-0.0059894,
-										0.00309133,
-										0.00125597}));
+		// TODO: Use dummy pose to test mapping
+		//refToFrame = SE3.inverse(SE3.exp(dummy[f%15]));
+		//f++;
+		
+		
 		
 		
 		frame.initialTrackedResidual = lastResidual / pointUsage;
@@ -344,6 +351,25 @@ public class Tracker {
 		
 		return SE3.inverse(refToFrame);
 	}
+	public int f = 0;
+	public static final double[][] dummy = new double[][]{
+		{-0.00175238851,-0.00469227021,0.000993556356,-0.00457633686,.00256084883,0.00164334879},
+		{-0.0032370568,-0.0071266297,0.000131566101,-0.00587451305,0.00416550569,0.00175637383},
+		{-0.00524847961,-0.00916995613,0.00073871208,-0.00682622829,0.00620494594,0.00117302331},
+		{-0.010111267,-0.0122120611,-0.00222993763,-0.00959468307,0.0112431362,0.00128104885},
+		{-0.0133069071,-0.0130967127,-0.00253995195,-0.0109903534,0.0132610342,0.000120093354},
+		{-0.0164450003,-0.0136377944,-0.00158586493,-0.0120422609,0.0156781726,-0.00115543701},
+		{-0.0160342665,-0.0123697938,0.000578902925,-0.0110716074,0.0174666422,-0.000227941858},
+		{-0.0221007355,-0.0191942833,-0.00251983725,-0.017727924,0.0257640394,0.00339003636},
+		{-0.0281898677,-0.0237951226,-0.00777249248,-0.0240689471,0.0305052818,0.00320009437},
+		{-0.040371606,-0.0227181611,-0.00656240021,-0.0272613005,0.037595325,-0.000599596067},
+		{-0.0428053593,-0.0228121154,-0.00198295719,-0.0279127882,0.0385276832,-0.00136081388},
+		{-0.0450458789,-0.0266367741,-0.00326801571,-0.0309348887,0.0405216672,-0.00154802265},
+		{-0.0470093594,-0.0258653192,-0.000641825914,-0.0299376692,0.0420608524,-0.00362433593},
+		{-0.0477334866,-0.0306360378,0.000595234146,-0.0330749078,0.0437194545,-0.00495575213},
+		{-0.0509633143,-0.0352358335,0.0015304195,-0.0365532545,0.0479359235,-0.00584868922}
+	};
+	
 
 	private jeigen.DenseMatrix calcIncrement(LGS6 ls, float LM_lambda) {
 		jeigen.DenseMatrix b = new jeigen.DenseMatrix(ls.b.neg());
@@ -390,7 +416,8 @@ public class Tracker {
 
 		//System.out.println("R: " + rotationMat);
 		//System.out.println("T: " + translationVec);
-		
+
+		//System.out.println("wh: " + frame.width(level) + " " + frame.height(level));
 		
 		// TODO: For drawing image for debugging.
 //		Mat debugImage = new Mat(referenceFrame.height(level), referenceFrame.width(level), CvType.CV_8UC1);
@@ -399,6 +426,8 @@ public class Tracker {
 		
 		
 		float sumResUnweighted = 0;
+		
+		boolean[] isGoodOutBuffer = Constants.SE3TRACKING_MIN_LEVEL == level ? frame.refPixelWasGood() : null;
 		
 		int goodCount = 0;
 		int badCount = 0;
@@ -433,15 +462,28 @@ public class Tracker {
 			// Warp to 2D image by estimate
 			jeigen.DenseMatrix warpedPoint = rotationMat.mmul(point).add(translationVec);
 			
+//			System.out.println("point: " + point);
+//			System.out.println("wxp: " + warpedPoint);
+//			DecimalFormat df = new DecimalFormat("#0.0000000000000");
+//			System.out.println("wxp: " + df.format(warpedPoint.get(0, 0)) + " "
+//									   + df.format(warpedPoint.get(1, 0)) + " "
+//									   + df.format(warpedPoint.get(2, 0)));
+			
 			// Image points
 			double u = (warpedPoint.get(0, 0)/warpedPoint.get(2, 0))*fx + cx;
 			double v = (warpedPoint.get(1, 0)/warpedPoint.get(2, 0))*fy + cy;
 			
+			//System.out.println("uv: " + u + " " + v);
+			
 			// Check image points within bounds
-			if (!(u>1 && v>1 && u<frame.width(level)-1 && v<frame.height(level)-1)) {
+			if (!(u>1 && v>1 && u<frame.width(level)-2 && v<frame.height(level)-2)) {
+				if(isGoodOutBuffer != null)
+					isGoodOutBuffer[i] = false;
 				// Skip this pixel
+				//System.out.println("-uv: " + df.format(u) + " " + df.format(v));
 				continue;
 			}
+			//System.out.println("+uv: " + df.format(u) + " " + df.format(v));
 			
 			inImage++;
 			
@@ -496,6 +538,10 @@ public class Tracker {
 					 	(interpolatedGradientX*interpolatedGradientX + 
 					 	 interpolatedGradientY*interpolatedGradientY)) < 1;
 			
+
+			if(isGoodOutBuffer != null)
+				isGoodOutBuffer[i] = isGood;
+			
 			if (isGood) {
 				sumResUnweighted += squaredResidual;
 				sumSignedRes += residual;
@@ -523,16 +569,17 @@ public class Tracker {
 		lastBadCount = badCount;
 		lastMeanRes = sumSignedRes / goodCount;
 		
-//		System.out.println("calcResidualAndBuffers lvl" + level);
-//		
-//
-//		System.out.println("inImage: " + inImage);
-//		System.out.println("numValid: " + numValidPoints);
-//		System.out.println("calcResidualAndBuffers sumUnweighted " + sumResUnweighted);
-//		System.out.println("calcResidualAndBuffers good " + goodCount);
-//
-//		System.out.println("calcResidualAndBuffers " + sumResUnweighted / goodCount);
+		/*
+		System.out.println("calcResidualAndBuffers lvl" + level);
 		
+
+		System.out.println("inImage: " + inImage);
+		System.out.println("numValid: " + numValidPoints);
+		System.out.println("calcResidualAndBuffers sumUnweighted " + sumResUnweighted);
+		System.out.println("calcResidualAndBuffers good " + goodCount);
+
+		System.out.println("calcResidualAndBuffers " + sumResUnweighted / goodCount);
+		*/
 		return sumResUnweighted / goodCount;
 	}
 	

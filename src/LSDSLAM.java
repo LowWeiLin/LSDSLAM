@@ -91,9 +91,9 @@ public class LSDSLAM {
 
 		// DO TRACKING & Show tracking result.
 		
-		System.out.println("InitEst1: " + Arrays.toString(SE3.ln(trackingReferencePose.getCamToWorld().getSE3())));
-		System.out.println("InitEst2: " + Arrays.toString(SE3.ln(keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)
-														.getCamToWorld().getSE3())));
+//		System.out.println("InitEst1: " + Arrays.toString(SE3.ln(trackingReferencePose.getCamToWorld().getSE3())));
+//		System.out.println("InitEst2: " + Arrays.toString(SE3.ln(keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)
+//														.getCamToWorld().getSE3())));
 		
 		SE3 frameToReference_initialEstimate = 
 				trackingReferencePose.getCamToWorld().inverse().mul(
@@ -271,7 +271,7 @@ public class LSDSLAM {
 			// references - list of frames to map
 			map.updateKeyframe(references);
 
-			//popped->clear_refPixelWasGood();
+			popped.clear_refPixelWasGood();
 			references.clear();
 		} else {
 			return false;

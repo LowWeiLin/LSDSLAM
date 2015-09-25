@@ -130,6 +130,7 @@ public class Constants {
 		cxInv[0] = KInv[0].get(0, 2);
 		cyInv[0] = KInv[0].get(1, 2);
 		
+		//System.out.println("KInv[0] " + KInv[0]);
 
 		for (int level = 0; level < PYRAMID_LEVELS; level++)
 		{

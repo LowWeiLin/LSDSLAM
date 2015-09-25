@@ -1,4 +1,6 @@
 package DataStructures;
+import java.util.Arrays;
+
 import jeigen.DenseMatrix;
 
 import org.opencv.core.Core;
@@ -34,6 +36,9 @@ public class Frame {
 	public float[][] inverseDepthVarianceLvl;
 	public boolean hasIDepthBeenSet = false;
 	public boolean depthHasBeenUpdatedFlag = false;
+	
+	// Tracking
+	public boolean[] refPixelWasGood;
 	
 	
 	// Graph values
@@ -93,7 +98,6 @@ public class Frame {
 		this.inverseDepthLvl = new float[Constants.PYRAMID_LEVELS][];
 		this.inverseDepthVarianceLvl = new float[Constants.PYRAMID_LEVELS][];
 		
-		
 		// Convert image to float type
 		image.convertTo(image, CvType.CV_32F);
 		
@@ -102,6 +106,12 @@ public class Frame {
 		this.imageArrayLvl[0] = new float[(int) imageLvl[0].total()];
 		this.imageLvl[0].get(0, 0, imageArrayLvl[0]);
 		//toSigned(imageArrayLvl[0]);
+		
+		float sum = 0;
+		for (float f : imageArrayLvl[0])
+			sum+=f;
+		
+		System.out.println("SUM: " + sum);
 		
 		// Set level 0 gradient
 		this.imageGradientXArrayLvl[0] = gradientX(imageArrayLvl[0], 0);
@@ -224,7 +234,7 @@ public class Frame {
 		int h = height(level);
 		
 		for (int i=w ; i<=w*(h-1) ; i++) {
-			imageGradientXArray[i] =  0.5f*(imageArrayLvl[i-1] - imageArrayLvl[i+1]);
+			imageGradientXArray[i] =  0.5f*(imageArrayLvl[i+1] - imageArrayLvl[i-1]);
 		}
 		
 		return imageGradientXArray;
@@ -459,4 +469,21 @@ public class Frame {
 		return pose.trackingParent.frame;
 	}
 	
+	public boolean[] refPixelWasGoodNoCreate() {
+		return refPixelWasGood;
+	}
+
+	public boolean[] refPixelWasGood() {
+		if (refPixelWasGood == null) {
+			int width = width(Constants.SE3TRACKING_MIN_LEVEL);
+			int height = height(Constants.SE3TRACKING_MIN_LEVEL);
+			refPixelWasGood = new boolean[width*height];
+			Arrays.fill(refPixelWasGood, true);
+		}
+		return refPixelWasGood;
+	}
+
+	public void clear_refPixelWasGood() {
+		refPixelWasGood = null;
+	}
 }
