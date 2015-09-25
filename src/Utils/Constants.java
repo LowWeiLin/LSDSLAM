@@ -45,7 +45,8 @@ public class Constants {
 	
 	// ============== stereo & gradient calculation ======================
 	public static final float MIN_DEPTH = 0.05f; // this is the minimal depth tested for stereo.
-
+	public static final boolean useSubpixelStereo = true;
+	
 	// Particularly important for initial pixel.
 	public static final float MAX_EPL_LENGTH_CROP = 30.0f; // maximum length of epl to search.
 	public static final float MIN_EPL_LENGTH_CROP = 3.0f; // minimum length of epl to search.

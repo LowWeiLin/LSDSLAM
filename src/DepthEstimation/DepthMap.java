@@ -418,9 +418,6 @@ public class DepthMap {
 			refFrame = newest_referenceFrame;
 		}
 		
-		
-
-		//TODO: implement
 		if(refFrame.getTrackingParent() == activeKeyFrame) {
 			boolean[] wasGoodDuringTracking = refFrame.refPixelWasGoodNoCreate();
 			
@@ -607,7 +604,9 @@ public class DepthMap {
 		// intersect it with the keyframe's image plane (at depth=1)
 		double epx = - fx * ref.thisToOther_t.get(0,0) + ref.thisToOther_t.get(2,0)*(x - cx);
 		double epy = - fy * ref.thisToOther_t.get(1,0) + ref.thisToOther_t.get(2,0)*(y - cy);
-
+		
+		//System.out.println("makeAndCheckEPL: epxy " + epx + "," + epy);
+		
 		if(Double.isNaN(epx+epy)) {
 			System.out.println("EPL n4");
 			return null;
@@ -623,10 +622,10 @@ public class DepthMap {
 
 
 		// ===== check epl-grad magnitude ======
-		
-		float gx = activeKeyFrame.imageGradientXArrayLvl[0][idx];
-		float gy = activeKeyFrame.imageGradientYArrayLvl[0][idx];
-		float eplGradSquared = activeKeyFrame.imageGradientMaxArrayLvl[0][idx];
+
+		float gx = activeKeyFrame.imageArrayLvl[0][idx+1] - activeKeyFrame.imageArrayLvl[0][idx-1];
+		float gy = activeKeyFrame.imageArrayLvl[0][idx+width] - activeKeyFrame.imageArrayLvl[0][idx-width];
+		float eplGradSquared = (float) (gx * epx + gy * epy);
 		eplGradSquared = eplGradSquared*eplGradSquared / eplLengthSquared;	// square and norm with epl-length
 
 		if(eplGradSquared < Constants.MIN_EPL_GRAD_SQUARED) {
@@ -724,7 +723,7 @@ public class DepthMap {
 //		if(referenceFrame->K_otherToThis_t[2] * max_idepth + pInf[2] < 0.01)
 
 
-		jeigen.DenseMatrix pClose = referenceFrame.K_otherToThis_t.mul(max_idepth).add(pInf);
+		jeigen.DenseMatrix pClose = pInf.add(referenceFrame.K_otherToThis_t.mul(max_idepth));
 		// if the assumed close-point lies behind the
 		// image, have to change that.
 		if(pClose.get(2,0) < 0.001f) {
@@ -733,7 +732,7 @@ public class DepthMap {
 		}
 		pClose = pClose.div(pClose.get(2,0)); // pos in new image of point (xy), assuming max_idepth
 
-		jeigen.DenseMatrix pFar = referenceFrame.K_otherToThis_t.mul(min_idepth).add(pInf);
+		jeigen.DenseMatrix pFar = pInf.add(referenceFrame.K_otherToThis_t.mul(min_idepth));
 		// if the assumed far-point lies behind the image or closter than the near-point,
 		// we moved past the Point it and should stop.
 		if(pFar.get(2,0) < 0.001f || max_idepth < min_idepth) {
@@ -934,6 +933,7 @@ public class DepthMap {
 			// interpolate one new point
 			val_cp_p2 = Utils.interpolatedValue(referenceFrameImage,cpx+2*incx, cpy+2*incy, width);
 
+			//System.out.println("val_cp_p2: " + val_cp_p2 + " realVal_p2: " + realVal_p2);
 
 			// hacky but fast way to get error and differential error: switch buffer variables for last loop.
 			float ee = 0;
@@ -977,6 +977,9 @@ public class DepthMap {
 				best_match_x = cpx;
 				best_match_y = cpy;
 				bestWasLastLoop = true;
+				
+
+				//System.out.println("bestxy: " + best_match_x + ", " + best_match_y);
 			}
 			// otherwise: the last might be the current winner, in which case i have to save these values.
 			else
@@ -1022,6 +1025,87 @@ public class DepthMap {
 		}
 
 		boolean didSubpixel = false;
+		if(Constants.useSubpixelStereo)
+		{
+			// ================== compute exact match =========================
+			// compute gradients (they are actually only half the real gradient)
+			float gradPre_pre = -(best_match_errPre - best_match_DiffErrPre);
+			float gradPre_this = (best_match_err - best_match_DiffErrPre);
+			float gradPost_this = -(best_match_err - best_match_DiffErrPost);
+			float gradPost_post = (best_match_errPost - best_match_DiffErrPost);
+
+			// final decisions here.
+			boolean interpPost = false;
+			boolean interpPre = false;
+
+			// if one is oob: return false.
+			if(/*enablePrintDebugInfo && */(best_match_errPre < 0 || best_match_errPost < 0))
+			{
+				//stats->num_stereo_invalid_atEnd++;
+			}
+			// - if zero-crossing occurs exactly in between (gradient Inconsistent),
+			else if((gradPost_this < 0) ^ (gradPre_this < 0))
+			{
+				// return exact pos, if both central gradients are small compared to their counterpart.
+				/*
+				if(enablePrintDebugInfo && (gradPost_this*gradPost_this > 0.1f*0.1f*gradPost_post*gradPost_post ||
+						gradPre_this*gradPre_this > 0.1f*0.1f*gradPre_pre*gradPre_pre))
+					stats->num_stereo_invalid_inexistantCrossing++;
+				*/
+			}
+
+			// if pre has zero-crossing
+			else if((gradPre_pre < 0) ^ (gradPre_this < 0))
+			{
+				// if post has zero-crossing
+				if((gradPost_post < 0) ^ (gradPost_this < 0))
+				{
+					//if(enablePrintDebugInfo) stats->num_stereo_invalid_twoCrossing++;
+				}
+				else
+					interpPre = true;
+			}
+
+			// if post has zero-crossing
+			else if((gradPost_post < 0) ^ (gradPost_this < 0))
+			{
+				interpPost = true;
+			}
+
+			// if none has zero-crossing
+			else
+			{
+				//if(enablePrintDebugInfo) stats->num_stereo_invalid_noCrossing++;
+			}
+
+
+			// DO interpolation!
+			// minimum occurs at zero-crossing of gradient, which is a straight line => easy to compute.
+			// the error at that point is also computed by just integrating.
+			if(interpPre)
+			{
+				float d = gradPre_this / (gradPre_this - gradPre_pre);
+				best_match_x -= d*incx;
+				best_match_y -= d*incy;
+				best_match_err = best_match_err - 2*d*gradPre_this - (gradPre_pre - gradPre_this)*d*d;
+				//if(enablePrintDebugInfo) stats->num_stereo_interpPre++;
+				didSubpixel = true;
+
+			}
+			else if(interpPost)
+			{
+				float d = gradPost_this / (gradPost_this - gradPost_post);
+				best_match_x += d*incx;
+				best_match_y += d*incy;
+				best_match_err = best_match_err + 2*d*gradPost_this + (gradPost_post - gradPost_this)*d*d;
+				//if(enablePrintDebugInfo) stats->num_stereo_interpPost++;
+				didSubpixel = true;
+			}
+			else
+			{
+				//if(enablePrintDebugInfo) stats->num_stereo_interpNone++;
+			}
+		}
 
 
 		// sampleDist is the distance in pixel at which the realVal's were sampled
@@ -1040,7 +1124,8 @@ public class DepthMap {
 		{
 			return new float[] {-3,result_idepth, result_var, result_eplLength};
 		}
-
+		
+		//System.out.println("bestxy*: " + best_match_x + ", " + best_match_y);
 
 		// ================= calc depth (in KF) ====================
 		// * KinvP = Kinv * (x,y,1); where x,y are pixel coordinates of point we search for, in the KF.
@@ -1061,6 +1146,9 @@ public class DepthMap {
 			idnew_best_match = (dot0 - oldX*dot2) / nominator;
 			alpha = (float) (incx*fxi*(dot0*referenceFrame.otherToThis_t.get(2,0) -
 					dot2*referenceFrame.otherToThis_t.get(0,0)) / (nominator*nominator));
+			
+
+			//System.out.println("idnew_best_match1: " + idnew_best_match);
 
 		}
 		else
@@ -1078,9 +1166,14 @@ public class DepthMap {
 			alpha = (float) (incy*fyi*(dot1*referenceFrame.otherToThis_t.get(2,0) -
 					dot2*referenceFrame.otherToThis_t.get(1,0)) / (nominator*nominator));
 
+
+			//System.out.println("idnew_best_match2: " + idnew_best_match);
+			//System.out.println("idnew_best_match2: " + dot1 + ", " + dot2 + ", " + nominator + ", " + oldY);
+			
+
 		}
 
-
+		//System.out.println("idnew_best_match: " + idnew_best_match);
 
 
 		boolean allowNegativeIdepths = true;
