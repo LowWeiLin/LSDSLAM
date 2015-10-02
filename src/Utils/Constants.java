@@ -13,7 +13,7 @@ public class Constants {
 	public static final int SE3TRACKING_MAX_LEVEL = 5;
 	public static final int SE3TRACKING_MIN_LEVEL = 1;
 	
-	public static final float MIN_USE_GRAD = 28.93f;//30.73f; // TODO: setting, not constant.
+	public static final float MIN_USE_GRAD = 28.93f; // TODO: setting, not constant.
 	public static final float MIN_ABS_GRAD_CREATE = MIN_USE_GRAD;
 	public static final float MIN_ABS_GRAD_DECREASE = MIN_USE_GRAD;
 	
@@ -130,8 +130,6 @@ public class Constants {
 		fyInv[0] = KInv[0].get(1, 1);
 		cxInv[0] = KInv[0].get(0, 2);
 		cyInv[0] = KInv[0].get(1, 2);
-		
-		//System.out.println("KInv[0] " + KInv[0]);
 
 		for (int level = 0; level < PYRAMID_LEVELS; level++)
 		{

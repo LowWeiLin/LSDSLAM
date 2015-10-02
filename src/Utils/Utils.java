@@ -33,7 +33,6 @@ public class Utils {
 					+ (dy-dxdy) 	* dataArray[bp+width]
 					+ (dx-dxdy) 	* dataArray[bp+1]
 					+ (1-dx-dy+dxdy)* dataArray[bp];
-		//System.out.println("interpolatedValue: " + dataArray[bp]);
 		return res;
 		
 	}

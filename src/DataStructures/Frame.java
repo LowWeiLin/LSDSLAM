@@ -1,14 +1,9 @@
 package DataStructures;
 import java.util.Arrays;
 
-import jeigen.DenseMatrix;
-
-import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Size;
-import org.opencv.highgui.Highgui;
-import org.opencv.imgproc.Imgproc;
 
 import DepthEstimation.DepthMapPixelHypothesis;
 import LieAlgebra.SIM3;
@@ -105,23 +100,10 @@ public class Frame {
 		this.imageLvl[0] = image;
 		this.imageArrayLvl[0] = new float[(int) imageLvl[0].total()];
 		this.imageLvl[0].get(0, 0, imageArrayLvl[0]);
-		//toSigned(imageArrayLvl[0]);
-		
-		float sum = 0;
-		for (float f : imageArrayLvl[0])
-			sum+=f;
-		
-		System.out.println("SUM: " + sum);
 		
 		// Set level 0 gradient
 		this.imageGradientXArrayLvl[0] = gradientX(imageArrayLvl[0], 0);
 		this.imageGradientYArrayLvl[0] = gradientY(imageArrayLvl[0], 0);
-		
-//		this.imageGradientXLvl[0] = new Mat();
-//		this.imageGradientYLvl[0] = new Mat();
-//		this.imageGradientXLvl[0].put(0, 0, imageGradientXArrayLvl[0]);
-//		this.imageGradientYLvl[0].put(0, 0, imageGradientYArrayLvl[0]);
-		
 		
 		// Max gradient
 		this.imageGradientMaxArrayLvl[0] = gradientMax(0);
@@ -130,18 +112,10 @@ public class Frame {
 		for (int i=1 ; i<Constants.PYRAMID_LEVELS ; i++) {
 			
 			// Image
-
 			imageArrayLvl[i] = new float[imageArrayLvl[i-1].length/4];
 			buildImageLevel(imageArrayLvl[i-1], imageArrayLvl[i], i);
 			this.imageLvl[i] = new Mat(new Size(width(i-1)/2, height(i-1)/2), CvType.CV_32F);
 			this.imageLvl[i].put(0,0,imageArrayLvl[i]);
-			
-			//this.imageLvl[i] = new Mat();
-			//Imgproc.pyrDown(this.imageLvl[i-1], this.imageLvl[i]);
-			
-			//this.imageArrayLvl[i] = new float[(int) imageLvl[i].total()];
-			//this.imageLvl[i].get(0, 0, imageArrayLvl[i]);
-			//toSigned(imageArrayLvl[i]);
 			
 			// Gradient
 			this.imageGradientXArrayLvl[i] = gradientX(imageArrayLvl[i], i);
@@ -155,12 +129,6 @@ public class Frame {
 			this.imageGradientMaxArrayLvl[i] = gradientMax(i);
 			this.imageGradientMaxLvl[i] = new Mat(new Size(width(i), height(i)), CvType.CV_32F);
 			this.imageGradientMaxLvl[i].put(0,0,imageGradientMaxArrayLvl[i]);
-			
-//			Highgui.imwrite("img-"+this.id+"-"+i+".jpg", this.imageLvl[i]);
-//			Highgui.imwrite("gradX-"+this.id+"-"+i+".jpg", this.imageGradientXLvl[i]);
-//			Highgui.imwrite("gradY-"+this.id+"-"+i+".jpg", this.imageGradientYLvl[i]);
-//			Highgui.imwrite("gradmax-"+this.id+"-"+i+".jpg", this.imageGradientMaxLvl[i]);
-			
 			
 		}
 	}
@@ -252,14 +220,6 @@ public class Frame {
 		return imageGradientYArray;
 	}
 	
-//	public int width() {
-//		return imageLvl[0].width();
-//	}
-//	
-//	public int height() {
-//		return imageLvl[0].height();
-//	}
-	
 	public int width(int level) {
 		return imageLvl[level].width();
 	}
@@ -268,15 +228,6 @@ public class Frame {
 		return imageLvl[level].height();
 	}
 	
-
-	// Applies & 0xFF to each element, to convert from unsigned to signed values.
-//	public static void toSigned(float[] imageArrayLvl2) {
-//		for (int i=0 ; i<imageArrayLvl2.length ; i++) {
-//			//imageArrayLvl2[i] &= 0xFF;
-//			//TODO: 
-//		}
-//	}
-
 	public void setDepth(DepthMapPixelHypothesis[] newDepth) {
 		
 
@@ -316,7 +267,6 @@ public class Frame {
 		
 		
 		// Do lower levels
-		
 		for (int level=1 ; level<Constants.PYRAMID_LEVELS ; level++) {
 			buildIDepthAndIDepthVar(level);
 		}
@@ -328,7 +278,6 @@ public class Frame {
 			System.err.println("buildIDepthAndIDepthVar: Invalid level parameter!");
 			return;
 		}
-		//System.out.println("buildIDepthAndIDepthVar: building level " + level);
 		
 		int width = width(level);
 		int height = height(level);
@@ -445,8 +394,6 @@ public class Frame {
 		otherToThis_R_row2 = thisToOther_R.col(2);
 
 		distSquared = Vec.dot(otherToThis.getTranslation(), otherToThis.getTranslation());
-		
-		//System.out.println("distSquared " + distSquared);
 		
 		referenceID = other.id();
 		referenceLevel = level;

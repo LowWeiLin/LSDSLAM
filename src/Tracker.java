@@ -1,17 +1,6 @@
 import java.io.FileNotFoundException;
-import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
-import java.text.DecimalFormat;
 import java.util.Arrays;
-
-import jeigen.DenseMatrix;
-
-import org.opencv.core.Core;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.highgui.Highgui;
-import org.opencv.highgui.VideoCapture;
-import org.opencv.imgproc.Imgproc;
 
 import DataStructures.Frame;
 import DataStructures.TrackingReference;
@@ -126,7 +115,6 @@ public class Tracker {
 		SE3 frameToRefEstimate = frameToRefInitialEstimate;
 		SE3 refToFrame = SE3.inverse(frameToRefEstimate);
 		
-		//System.out.println("Init: "+Arrays.toString(SE3.ln(frameToRefEstimate)));
 		System.out.println("---tracking "+ frame.id() +" ---");
 		System.out.println("Init refToFrame: "+Arrays.toString(SE3.ln(refToFrame)));
 		
@@ -157,18 +145,9 @@ public class Tracker {
 					TrackingReference.writePointCloudToFile("pointCloud-"+frame.id()+"-"+level+".xyz",
 							referenceFrame.pointCloudLvl[level], referenceFrame.width(level), referenceFrame.height(level));
 				} catch (FileNotFoundException | UnsupportedEncodingException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
-//			try {
-//				TrackingReference.writePointCloudToFile("pointCloud-"+frame.id()+"-"+level+".xyz",
-//						referenceFrame);
-//			} catch (FileNotFoundException | UnsupportedEncodingException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
-			
 			
 			calculateResidualAndBuffers(referenceFrame,
 										frame,
@@ -187,11 +166,7 @@ public class Tracker {
 			
 			// Weighted SSD
 			float lastError = calculateWeightsAndResidual(refToFrame);
-			
 			float LM_lambda = this.lambdaInitial[level];
-
-			// TODO: check again
-			System.out.println("L" + level + " - " + "last err" + " " + lastError);
 			
 			// For a maximum number of iterations
 			for (int iteration=0 ; iteration < maxItsPerLvl[level] ; iteration++) {
@@ -230,25 +205,16 @@ public class Tracker {
 						return null;
 					}
 					
-					//System.out.println("newRefToFrame " + Arrays.toString(SE3.ln(newRefToFrame)));
-					
 					// Calculate weighted residual/error
 					float error = calculateWeightsAndResidual(newRefToFrame);
-					//System.out.println("error: " + error);
 					if (error < lastError) {
-						//System.out.println("error < lastError");
 						// Accept increment
 						refToFrame = newRefToFrame;
-						
-//						System.out.println("inc:" + Arrays.toString(Vec.vecToArray(inc)) + LM_lambda);
-//						System.out.println("vec6:" + Arrays.toString(SE3.ln(newRefToFrame)));
-//						System.out.println("\n\n");
 						
 						// Check for convergence
 						if (error / lastError > convergenceEps[level]) {
 							// Stop iteration
 							iteration = maxItsPerLvl[level];
-							//System.out.println("Converged");
 						}
 						lastError = error;
 						lastResidual = error;
@@ -259,8 +225,6 @@ public class Tracker {
 						} else {
 							LM_lambda *= lambdaSuccessFac;
 						}
-						//System.out.println("break");
-						// Break!
 						break;
 					} else {
 						double[] incVec = Vec.vec6ToArray(inc);
@@ -281,8 +245,6 @@ public class Tracker {
 					}
 					
 				}
-
-				//System.out.println("L" + level + " - " + iteration + " " + lastError);
 			}
 			
 			
@@ -302,53 +264,12 @@ public class Tracker {
 		//f++;
 		
 		
-		
-		
 		frame.initialTrackedResidual = lastResidual / pointUsage;
 		frame.pose.thisToParent_raw = new SIM3(SE3.inverse(refToFrame), 1);
 		frame.pose.trackingParent = referenceFrame.keyframe.pose;
 		
-
-		// Test writing original 3D point cloud
-//		try {
-//			referenceFrame.writePointCloudToFile("out1-"+frame.id()+".xyz", referenceFrame.pointCloudLvl[0],
-//					referenceFrame.width(0), referenceFrame.height(0));
-//		} catch (FileNotFoundException | UnsupportedEncodingException e) {
-//			e.printStackTrace();
-//		}
-		
-
-		// Offset 3D point cloud by refToFrame
-//		jeigen.DenseMatrix rotationMat = refToFrame.getRotationMat();
-//		jeigen.DenseMatrix translationVec = refToFrame.getTranslationMat();
-//		for (int i=0 ; i<referenceFrame.pointCloudLvl[0].length ; i++) {
-//			// Each 3D point
-//			jeigen.DenseMatrix point = referenceFrame.pointCloudLvl[0][i];
-//			
-//			// Skip if point is not valid
-//			if (point == null) {
-//				continue;
-//			}
-//			
-//			// Warp to 2D image by estimate
-//			jeigen.DenseMatrix warpedPoint = rotationMat.mmul(point).add(translationVec);
-//			referenceFrame.pointCloudLvl[0][i] = warpedPoint;
-//		}
-		
-		// Test writing offset 3D point cloud
-//		try {
-//			referenceFrame.writePointCloudToFile("out2.xyz", referenceFrame.pointCloudLvl[0],
-//					referenceFrame.width(0), referenceFrame.height(0));
-//		} catch (FileNotFoundException | UnsupportedEncodingException e) {
-//			e.printStackTrace();
-//		}
-		
-		
 		System.out.println("Final frameToRef: " + Arrays.toString(SE3.ln(SE3.inverse(refToFrame))));
 
-		//System.out.println("Rotation: " + refToFrame.getRotationMat());
-		//System.out.println("Translation: " + refToFrame.getTranslationMat());
-		
 		return SE3.inverse(refToFrame);
 	}
 	public int f = 0;
@@ -375,11 +296,9 @@ public class Tracker {
 		jeigen.DenseMatrix b = new jeigen.DenseMatrix(ls.b.neg());
 		jeigen.DenseMatrix A = new jeigen.DenseMatrix(ls.A);
 		for (int i=0 ; i<6 ; i++) {
-			//A(i,i) *= 1+LM_lambda;
-			A.set(i, i, A.get(i, i) * (1 + LM_lambda));
+			A.set(i, i, A.get(i, i) * (1 + LM_lambda)); //A(i,i) *= 1+LM_lambda;
 		}
 		jeigen.DenseMatrix inc = A.ldltSolve(b);
-		//System.out.println("A:\n" + A + "\nb\n" + b);
 		return inc;
 	}
 	
@@ -399,8 +318,6 @@ public class Tracker {
 	public float calculateResidualAndBuffers(TrackingReference referenceFrame,
 			Frame frame, SE3 frameToRefPose, int level) {
 		
-		//System.out.println("F: " + frame.id() + " L: " + level);
-		
 		calculateResidualAndBuffersCount++;
 		
 		double fx = Constants.fx[level];
@@ -408,23 +325,11 @@ public class Tracker {
 		double cx = Constants.cx[level];
 		double cy = Constants.cy[level];
 		
-		//System.out.println(fx + " " + fy + " " + cx + " " + cy);
 		
 		// Get rotation, translation matrix
 		jeigen.DenseMatrix rotationMat = frameToRefPose.getRotationMat();
 		jeigen.DenseMatrix translationVec = frameToRefPose.getTranslationMat();
 
-		//System.out.println("R: " + rotationMat);
-		//System.out.println("T: " + translationVec);
-
-		//System.out.println("wh: " + frame.width(level) + " " + frame.height(level));
-		
-		// TODO: For drawing image for debugging.
-//		Mat debugImage = new Mat(referenceFrame.height(level), referenceFrame.width(level), CvType.CV_8UC1);
-//		byte[] debugArray = new byte[(int) debugImage.total()];
-//		debugImage.get(0, 0, debugArray);
-		
-		
 		float sumResUnweighted = 0;
 		
 		boolean[] isGoodOutBuffer = Constants.SE3TRACKING_MIN_LEVEL == level ? frame.refPixelWasGood() : null;
@@ -432,7 +337,6 @@ public class Tracker {
 		int goodCount = 0;
 		int badCount = 0;
 
-		// Sum of residuals. Used for what?
 		float sumSignedRes = 0;
 		
 		// what?
@@ -442,8 +346,6 @@ public class Tracker {
 		
 		
 		int numValidPoints = 0;
-		
-		int inImage = 0;
 		
 		// For each point in point cloud
 		for (int i=0 ; i<referenceFrame.pointCloudLvl[level].length ; i++) {
@@ -457,49 +359,25 @@ public class Tracker {
 				numValidPoints++;
 			}
 			
-			
-			
 			// Warp to 2D image by estimate
 			jeigen.DenseMatrix warpedPoint = rotationMat.mmul(point).add(translationVec);
-			
-//			System.out.println("point: " + point);
-//			System.out.println("wxp: " + warpedPoint);
-//			DecimalFormat df = new DecimalFormat("#0.0000000000000");
-//			System.out.println("wxp: " + df.format(warpedPoint.get(0, 0)) + " "
-//									   + df.format(warpedPoint.get(1, 0)) + " "
-//									   + df.format(warpedPoint.get(2, 0)));
-			
+		
 			// Image points
 			double u = (warpedPoint.get(0, 0)/warpedPoint.get(2, 0))*fx + cx;
 			double v = (warpedPoint.get(1, 0)/warpedPoint.get(2, 0))*fy + cy;
-			
-			//System.out.println("uv: " + u + " " + v);
 			
 			// Check image points within bounds
 			if (!(u>1 && v>1 && u<frame.width(level)-2 && v<frame.height(level)-2)) {
 				if(isGoodOutBuffer != null)
 					isGoodOutBuffer[i] = false;
 				// Skip this pixel
-				//System.out.println("-uv: " + df.format(u) + " " + df.format(v));
 				continue;
 			}
-			//System.out.println("+uv: " + df.format(u) + " " + df.format(v));
 			
-			inImage++;
-			
-//			System.out.println(i);
-//			System.out.println("--\nP: \n" + point);
-//			System.out.println("R: \n" + rotationMat);
-//			System.out.println("T: \n" + translationVec);
-
 			// Interpolated intensity, gradient X,Y.
 			float interpolatedIntensity = Utils.interpolatedValue(frame.imageArrayLvl[level], u, v, frame.width(level));
 			float interpolatedGradientX = Utils.interpolatedValue(frame.imageGradientXArrayLvl[level], u, v, frame.width(level));
 			float interpolatedGradientY = Utils.interpolatedValue(frame.imageGradientYArrayLvl[level], u, v, frame.width(level));
-			
-			
-			// TODO: For drawing image for debugging.
-//			debugArray[i] = (byte)interpolatedIntensity;
 			
 			float referenceFrameIntensity = referenceFrame.keyframe.imageArrayLvl[level][i];
 			
@@ -508,15 +386,10 @@ public class Tracker {
 			float c2 = interpolatedIntensity;
 			float residual = c1 - c2;
 			float squaredResidual = residual*residual;
-			
-			//System.out.println("l: " + level);
-			//System.out.println("r: " + c1 + " " + c2);
-			//System.out.println("Redidual: " + residual);
-
+	
 			// Set buffers
 			this.bufWarpedResidual[warpedCount] = residual;
 			
-			//** Gradient multiplied by fx fy?
 			this.bufWarpedDx[warpedCount] = (float) (fx * interpolatedGradientX);
 			this.bufWarpedDy[warpedCount] = (float) (fy * interpolatedGradientY);
 			
@@ -553,33 +426,16 @@ public class Tracker {
 
 			// Change in depth
 			float depthChange = (float) (point.get(2,0) / warpedPoint.get(2, 0));	// if depth becomes larger: pixel becomes "smaller", hence count it less.
-			// What? pixels used?
+			// Pixels used?
 			usageCount += depthChange < 1 ? depthChange : 1;
 
-			
 		}
 		
-		// TODO: For drawing image for debugging.
-//		debugImage.put(0, 0, debugArray);
-//		Highgui.imwrite("debugImage"+calculateResidualAndBuffersCount+"-"+ sumResUnweighted/goodCount + ".jpg", debugImage);
-		
-
 		pointUsage = usageCount / (float)numValidPoints;
 		lastGoodCount = goodCount;
 		lastBadCount = badCount;
 		lastMeanRes = sumSignedRes / goodCount;
 		
-		/*
-		System.out.println("calcResidualAndBuffers lvl" + level);
-		
-
-		System.out.println("inImage: " + inImage);
-		System.out.println("numValid: " + numValidPoints);
-		System.out.println("calcResidualAndBuffers sumUnweighted " + sumResUnweighted);
-		System.out.println("calcResidualAndBuffers good " + goodCount);
-
-		System.out.println("calcResidualAndBuffers " + sumResUnweighted / goodCount);
-		*/
 		return sumResUnweighted / goodCount;
 	}
 	
@@ -637,7 +493,6 @@ public class Tracker {
 		
 		ls.initialize();
 		
-		//System.out.println("warpedCount: " + warpedCount );
 		// For each warped pixel
 		for (int i=0 ; i<warpedCount ; i++) {
 
@@ -664,11 +519,6 @@ public class Tracker {
 					{(1.0 + px * px * z_sqr) * gx + (px * py * z_sqr) * gy},
 					{(-py * z) * gx + (px * z) * gy}});		
 			
-			//System.out.println("xyz: " + px + "," + py + "," + pz);
-			//System.out.println("r: " + r);
-			//System.out.println("gxy: " + gx + "," + gy);
-			
-			//System.out.println("V:"+v+"\nR:"+r);
 			// Integrate into A and b
 			ls.update(v, r, bufWeightP[i]);
 			
@@ -678,125 +528,5 @@ public class Tracker {
 		ls.finish();
 		
 	}
-	
-	
-	// Entry point 1 used to test Tracker
-	public static void main2(String[] args) {
-		
-		// Load OpenCV native library.
-		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-		
-		// Set Camera parameters
-		Constants.setK(500, 500, 640/2, 480/2);
-		
-		
-		// Read image
-		Mat image1 = null;
-		Mat image2 = null;
-		image1 = Highgui.imread("test1.jpg");
-		image2 = Highgui.imread("test2.jpg");
-		
-		// Convert to grayscale
-		Imgproc.cvtColor(image1, image1, Imgproc.COLOR_RGB2GRAY);
-		Imgproc.cvtColor(image2, image2, Imgproc.COLOR_RGB2GRAY);
-		
-		System.out.println("Image sizes: " +  image1.width() + ", " + image1.height());
-		
-		
-		Frame frame1 = new Frame(image1);
-		Frame frame2 = new Frame(image2);
-		TrackingReference refFrame = new TrackingReference(frame1);
-		
-		
-		// Track frame
-		Tracker tracker = new Tracker();
-		SE3 se3 = tracker.trackFrame(refFrame, frame2, SE3.exp(new double[]{0,0,0,0,0,0}));
-		
-		
-		
-	}
-	
-	// Entry point 2 used to test Tracker
-	public static void main(String[] args) {
-		
-		// Load OpenCV native library.
-		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-		
-		// Set Camera parameters
-		Constants.setK(500, 500, 640/2, 480/2);
-		
-		
-		VideoCapture capture = new VideoCapture();
-		capture.open("table-vid-trimmed.avi");
-		Mat mat = new Mat();
-		
-		Mat firstFrame = new Mat();
-		capture.read(firstFrame);
-		Imgproc.cvtColor(firstFrame, firstFrame, Imgproc.COLOR_RGB2GRAY);
-
-		Frame frame1 = new Frame(firstFrame);
-		TrackingReference refFrame = new TrackingReference(frame1);
-		
-		Tracker tracker = new Tracker();
-		
-		
-		// Write 3D points of camera center
-		PrintWriter writer = null;
-		try {
-			writer = new PrintWriter("3dpoints.xyz", "ASCII");
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (UnsupportedEncodingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		writer.println(3);
-		
-		int count = 0;
-		for(;;){
-			//System.out.println(count);
-			boolean success = capture.read(mat); //reads captured frame into the Mat image
-			
-			if (!success || count >= 50) {
-				break;
-			}
-			Imgproc.cvtColor(mat, mat, Imgproc.COLOR_RGB2GRAY);
-			   
-			Frame frame = new Frame(mat);
-			
-			//Highgui.imwrite("Test-"+count+".jpg", frame.imageLvl[0]);
-			
-			System.out.println(refFrame.keyframe.id()+"-->"+frame.id());
-			
-			
-			SE3 se3 = tracker.trackFrame(refFrame, frame, SE3.exp(new double[]{0,0,0,0,0,0}));
-			
-			if (se3 == null) // Diverged
-				continue;
-			
-			System.out.println("Vec6: " + Arrays.toString(SE3.ln(se3)));
-			   
-			double[] se3Array = SE3.ln(se3);
-			
-			writer.printf("%.6f ", se3Array[0]);
-			writer.printf("%.6f ", se3Array[1]);
-			writer.printf("%.6f\n", se3Array[2]);
-			
-			writer.flush();
-			
-			
-			count++;
-			
-		}
-		
-		
-		writer.close();
-		
-		
-	}
-	
-	
-	
 	
 }

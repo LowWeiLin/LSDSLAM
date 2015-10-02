@@ -2,8 +2,6 @@ package DataStructures;
 
 import java.util.ArrayList;
 
-import LieAlgebra.SIM3;
-
 public class KeyFrameGraph {
 
 

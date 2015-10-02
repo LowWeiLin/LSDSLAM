@@ -1,4 +1,3 @@
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.LinkedList;
 
@@ -91,10 +90,6 @@ public class LSDSLAM {
 
 		// DO TRACKING & Show tracking result.
 		
-//		System.out.println("InitEst1: " + Arrays.toString(SE3.ln(trackingReferencePose.getCamToWorld().getSE3())));
-//		System.out.println("InitEst2: " + Arrays.toString(SE3.ln(keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)
-//														.getCamToWorld().getSE3())));
-		
 		SE3 frameToReference_initialEstimate = 
 				trackingReferencePose.getCamToWorld().inverse().mul(
 					keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1).getCamToWorld()).getSE3();
@@ -163,11 +158,7 @@ public class LSDSLAM {
 				
 				System.err.println("CREATE NEW KEYFRAME");
 
-				//if(enablePrintDebugInfo && printKeyframeSelectionInfo)
-				//	printf("SELECT %d on %d! dist %.3f + usage %.3f = %.3f > 1\n",trackingNewFrame->id(),trackingNewFrame->getTrackingParent()->id(), dist.dot(dist), tracker->pointUsage, trackableKeyFrameSearch->getRefFrameScore(dist.dot(dist), tracker->pointUsage));
 			} else {
-				//if(enablePrintDebugInfo && printKeyframeSelectionInfo)
-				//	printf("SKIPPD %d on %d! dist %.3f + usage %.3f = %.3f > 1\n",trackingNewFrame->id(),trackingNewFrame->getTrackingParent()->id(), dist.dot(dist), tracker->pointUsage, trackableKeyFrameSearch->getRefFrameScore(dist.dot(dist), tracker->pointUsage));
 			}
 		}
 		
@@ -206,17 +197,14 @@ public class LSDSLAM {
 				//changeKeyframe(false, true, 1.0f);
 			} else {
 				System.out.println("doMappingIteration: update keyframe");
-				// ***Update key frame here
+				// ***Update key frame here***
 				boolean didSomething = updateKeyframe();
 
 				if(!didSomething) {
-					System.err.println("updateKeyFrame false");
+					System.err.println("updateKeyFrame: false");
 					return false;
 				}
 			}
-			
-			// Debug and draw depth map
-			//map.debugPlotDepthMap();
 			
 			return true;
 		} else { // Tracking is not good
@@ -264,10 +252,9 @@ public class LSDSLAM {
 		if(unmappedTrackedFrames.size() > 0) {
 			// Copy from unmappedTrackedFrames to references
 			references.addAll(unmappedTrackedFrames);
-			
 			Frame popped = unmappedTrackedFrames.pop();
 
-			// ***DO the update here
+			// ***Do the update here***
 			// references - list of frames to map
 			map.updateKeyframe(references);
 
@@ -278,7 +265,7 @@ public class LSDSLAM {
 		}
 
 
-
+		// TODO: publish results so far?
 		//if(outputWrapper != 0 && continuousPCOutput && currentKeyFrame != 0)
 		//	outputWrapper->publishKeyframe(currentKeyFrame.get());
 

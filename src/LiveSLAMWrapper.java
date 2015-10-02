@@ -3,7 +3,6 @@ import java.io.File;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.highgui.Highgui;
-import org.opencv.highgui.VideoCapture;
 import org.opencv.imgproc.Imgproc;
 
 import Utils.Constants;
@@ -42,35 +41,6 @@ public class LiveSLAMWrapper {
 	        }
 	    }
 		
-		/*
-		VideoCapture capture = new VideoCapture();
-		capture.open("table-vid-trimmed.avi");
-		
-		while(true) {
-			Mat frame = new Mat();
-			boolean success = capture.read(frame);
-			
-			if (!success) {
-				break;
-			}
-			
-			// Process image frame
-			newImageCallback(frame);
-		}
-		*/
-		
-		// Read image
-//		Mat image1 = null;
-//		Mat image2 = null;
-//		image1 = Highgui.imread("test1.jpg");
-//		image2 = Highgui.imread("test2.jpg");
-//		newImageCallback(image1);
-//		newImageCallback(image2);
-//		newImageCallback(image1);
-//		newImageCallback(image2);
-		
-		
-		
 	}
 	
 	public void newImageCallback(Mat image) {
@@ -98,8 +68,6 @@ public class LiveSLAMWrapper {
 		} else if(isInitialized && lsdSlam != null) {
 			lsdSlam.trackFrame(grayImg, imageSeqNumber);
 			
-
-			
 			// TODO: remove? call in another thread?
 			// Do here, sequentially for now.
 			lsdSlam.doMappingIteration();
@@ -114,7 +82,6 @@ public class LiveSLAMWrapper {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 		
 		// Set Camera parameters
-		//Constants.setK(746.831, 746.442, 318.502, 238.502);
 		Constants.setK(748.000000, 748.000000, 319.000000, 239.000000);
 		
 		
