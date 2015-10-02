@@ -198,7 +198,6 @@ public class DepthMap {
 		
 		// Update depth in keyframe
 		if(!activeKeyFrame.depthHasBeenUpdatedFlag) {
-			System.out.println("DepthMap-updateKeyframe: !depthHasBeenUpdated");
 			// Update keyframe with updated depth?
 			activeKeyFrame.setDepth(currentDepthMap);
 		}
@@ -221,7 +220,6 @@ public class DepthMap {
 	 * @param yMax
 	 */
 	void observeDepthRow(int yMin, int yMax) {
-		System.out.println("ObserveDepthRow");
 		float[] keyFrameMaxGradBuf = activeKeyFrame.imageGradientMaxArrayLvl[0];
 
 		int successes = 0;

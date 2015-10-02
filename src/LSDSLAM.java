@@ -154,10 +154,8 @@ public class LSDSLAM {
 					(float) Vec.dot(distVec, distVec), tracker.pointUsage);
 
 			if (lastTrackingClosenessScore > minVal) {
-				//createNewKeyFrame = true;
-				
-				System.err.println("CREATE NEW KEYFRAME");
-
+				//System.err.println("CREATE NEW KEYFRAME");
+				createNewKeyFrame = true;
 			} else {
 			}
 		}
@@ -178,7 +176,6 @@ public class LSDSLAM {
 	}
 	
 	public boolean doMappingIteration() {
-		System.out.println("Mapping!");
 		if(currentKeyFrame == null) {
 			System.err.println("doMappingIteration: currentKeyFrame is null!");
 			return false;
@@ -189,7 +186,7 @@ public class LSDSLAM {
 		
 		// set mappingFrame
 		if(trackingIsGood) {
-			System.out.println("Tracking good!");
+			System.out.println("Tracking was good!");
 			if (createNewKeyFrame) {
 				System.out.println("doMappingIteration: create new keyframe");
 				// create new key frame
@@ -208,7 +205,7 @@ public class LSDSLAM {
 			
 			return true;
 		} else { // Tracking is not good
-			System.err.println("Tracking bad!");
+			System.err.println("Tracking was bad!");
 			/*
 			
 			// invalidate map if it was valid.
