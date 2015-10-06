@@ -131,19 +131,14 @@ public class Tracker {
 
 			// Generate 3D points of reference frame for the level, if not already done.
 			//if (referenceFrame.pointCloudLvl[level] == null) {
-				referenceFrame.pointCloudLvl[level] = 
-						referenceFrame.createPointCloud(
-						referenceFrame.keyframe.inverseDepthLvl[level],
-						referenceFrame.keyframe.inverseDepthVarianceLvl[level],
-						referenceFrame.width(level), referenceFrame.height(level),
-						level);
+					referenceFrame.createPointCloud(level);
 			//}
 			
 			// TODO: Write point cloud to file
 			if (level == 1) {
 				try {
 					TrackingReference.writePointCloudToFile("pointCloud-"+frame.id()+"-"+level+".xyz",
-							referenceFrame.pointCloudLvl[level], referenceFrame.width(level), referenceFrame.height(level));
+							referenceFrame.posDataLvl[level], referenceFrame.width(level), referenceFrame.height(level));
 				} catch (FileNotFoundException | UnsupportedEncodingException e) {
 					e.printStackTrace();
 				}
@@ -323,9 +318,9 @@ public class Tracker {
 		int numValidPoints = 0;
 		
 		// For each point in point cloud
-		for (int i=0 ; i<referenceFrame.pointCloudLvl[level].length ; i++) {
+		for (int i=0 ; i<referenceFrame.posDataLvl[level].length ; i++) {
 			// 3D position
-			jeigen.DenseMatrix point = referenceFrame.pointCloudLvl[level][i];
+			jeigen.DenseMatrix point = referenceFrame.posDataLvl[level][i];
 			
 			// Skip if point is not valid
 			if (point == null) {

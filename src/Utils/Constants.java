@@ -18,6 +18,15 @@ public class Constants {
 	public static final float MIN_ABS_GRAD_DECREASE = MIN_USE_GRAD;
 	
 	
+	public static final int QUICK_KF_CHECK_LVL = 4;
+	
+	//Toggle Keyframe Re-Activation on/off: If close to an existing keyframe, re-activate it instead of creating a new one. If false, Map will continually grow even if the camera moves in a relatively constrained area; If false, the number of keyframes will not grow arbitrarily.
+	public static final boolean doKFReActivation = true;
+	
+	// Used to manually indicate that tracking is lost.
+	public static boolean manualTrackingLossIndicated = false;
+	
+	
 	/** ============== constants for validity handling ======================= */
 
 	// validity can take values between 0 and X, where X depends on the abs. gradient at that location:

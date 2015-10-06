@@ -28,7 +28,7 @@ public class LiveSLAMWrapper {
 		for (final File fileEntry : folder.listFiles()) {
 	        if (fileEntry.isDirectory()) {
 	        } else {
-	        	System.out.println(imagesDirectory + "/" + fileEntry.getName());
+	        	System.out.println("Reading: " + imagesDirectory + "/" + fileEntry.getName());
 	            Mat frame = Highgui.imread(imagesDirectory + "/" + fileEntry.getName());
 	            
 	            if (frame.empty()) {

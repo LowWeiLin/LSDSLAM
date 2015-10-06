@@ -1,6 +1,8 @@
 package DataStructures;
 import java.util.Arrays;
 
+import jeigen.DenseMatrix;
+
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Size;
@@ -36,11 +38,25 @@ public class Frame {
 	public boolean[] refPixelWasGood;
 	
 	
+	// data needed for re-activating the frame. theoretically, this is all data the
+	// frame contains.
+	public int[] validity_reAct;
+	public float[] idepth_reAct;
+	public float[] idepthVar_reAct;
+	public boolean reActivationDataValid = false;
+	
+	// Tracking Reference for quick test. Always available, never taken out of memory.
+	// this is used for re-localization and re-Keyframe positioning.
+	jeigen.DenseMatrix[] permaRef_posData;	// (x,y,z)
+	jeigen.DenseMatrix[] permaRef_colorAndVarData;	// (I, Var)
+	int permaRefNumPts;
+	
 	// Graph values
 	static int totalFrames = 0;
 	int id;
 	public FramePoseStruct pose;
-	
+	public int idxInKeyframes = -1;
+		
 	
 
 	// Temporary values
@@ -65,7 +81,6 @@ public class Frame {
 	public int numMappedOnThisTotal;
 	public float meanIdepth;
 	public int numPoints;
-	public int idxInKeyframes;
 	public float edgeErrorSum, edgesNum;
 	public int numMappablePixels;
 	public float meanInformation;
@@ -432,5 +447,58 @@ public class Frame {
 
 	public void clear_refPixelWasGood() {
 		refPixelWasGood = null;
+	}
+	
+	public void takeReActivationData(DepthMapPixelHypothesis[] depthMap) {
+
+		if (validity_reAct == null) {
+			validity_reAct = new int[width(0)*height(0)];
+			idepth_reAct = new float[width(0)*height(0)];
+			idepthVar_reAct = new float[width(0)*height(0)];
+		}
+		for (int i=0 ; i<width(0)*height(0) ; i++) {
+			if (depthMap[i].isValid) {
+				idepth_reAct[i] = depthMap[i].idepth;
+				idepthVar_reAct[i] = depthMap[i].idepth_var;
+				validity_reAct[i] = depthMap[i].validity_counter;
+			} else if (depthMap[i].blacklisted < Constants.MIN_BLACKLIST) {
+				idepthVar_reAct[i] = -2;
+			} else {
+				idepthVar_reAct[i] = -1;
+			}
+		}
+
+		reActivationDataValid = true;
+	}
+	
+
+	public void setPermaRef(TrackingReference reference)
+	{
+		assert(reference.keyframe.id == id());
+		reference.createPointCloud(Constants.QUICK_KF_CHECK_LVL);
+	
+		if(permaRef_colorAndVarData != null)
+			permaRef_colorAndVarData = null;
+		if(permaRef_posData != null)
+			permaRef_posData = null;
+
+		permaRefNumPts = reference.width(Constants.QUICK_KF_CHECK_LVL) * reference.height(Constants.QUICK_KF_CHECK_LVL);
+		permaRef_colorAndVarData = new DenseMatrix[permaRefNumPts];
+		permaRef_posData = new DenseMatrix[permaRefNumPts];
+	
+		copyDenseMatrixArray(reference.colorAndVarDataLvl[Constants.QUICK_KF_CHECK_LVL], permaRef_colorAndVarData);
+		
+		copyDenseMatrixArray(reference.posDataLvl[Constants.QUICK_KF_CHECK_LVL], permaRef_posData);
+		
+	}
+	
+	private void copyDenseMatrixArray(DenseMatrix[] src, DenseMatrix[] dst) {
+		for (int i=0 ; i<src.length ; i++) {
+			if (src[i] == null) {
+				dst[i] = null;
+			} else {
+				dst[i] = new DenseMatrix(src[i]);
+			}
+		}
 	}
 }

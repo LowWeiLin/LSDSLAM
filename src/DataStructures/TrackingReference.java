@@ -12,8 +12,9 @@ public class TrackingReference {
 	
 	
 	
-	// Array of vector3, for each pyramid level. posData
-	public jeigen.DenseMatrix[][] pointCloudLvl = new jeigen.DenseMatrix[Constants.PYRAMID_LEVELS][];
+	// Array of vector3, for each pyramid level. posData, makes up the point cloud.
+	public jeigen.DenseMatrix[][] posDataLvl = new jeigen.DenseMatrix[Constants.PYRAMID_LEVELS][];
+	public jeigen.DenseMatrix[][] colorAndVarDataLvl = new jeigen.DenseMatrix[Constants.PYRAMID_LEVELS][];
 	
 	/**
 	 * ReferenceFrame constructor
@@ -28,10 +29,18 @@ public class TrackingReference {
 	/**
 	 * Create 3D points from inverse depth values
 	 */
-	public jeigen.DenseMatrix[] createPointCloud(float[] inverseDepth,
-			float[] inverseDepthVariance, int width, int height, int level) {
+	public void createPointCloud(int level) {
 		
-		jeigen.DenseMatrix[] pointCloud = new jeigen.DenseMatrix[width*height];
+		
+		int width = keyframe.width(level);
+		int height = keyframe.height(level);
+
+		float[] image = keyframe.imageArrayLvl[level];
+		float[] inverseDepth = keyframe.inverseDepthLvl[level];
+		float[] inverseDepthVariance = keyframe.inverseDepthVarianceLvl[level];
+		
+		jeigen.DenseMatrix[] posData = new jeigen.DenseMatrix[width*height];
+		jeigen.DenseMatrix[] colorAndVarData = new jeigen.DenseMatrix[width*height];
 		
 		double fxInv = Constants.fxInv[level];
 		double fyInv = Constants.fyInv[level];
@@ -50,19 +59,37 @@ public class TrackingReference {
 
 				// Skip if depth/variance is not valid
 				if(idepth == 0 || var <= 0) {
-					pointCloud[idx] = null;
+					posData[idx] = null;
 					continue;
 				}
 				
+				float color = image[idx];
+				
+				float depth = (float) (1.0/idepth);
+				
 				// Set point, calculated from inverse depth
-				pointCloud[idx] = (new jeigen.DenseMatrix(
+				
+				posData[idx] = (new jeigen.DenseMatrix(
 						new double[][]{{fxInv*x + cxInv},
 									   {fyInv*y + cyInv},
 									   {1}})).div(idepth);
 				
+				/*
+				posData[idx] = (new jeigen.DenseMatrix(
+						new double[][]{{fxInv*x + cxInv},
+									   {fyInv*y + cyInv},
+									   {1}})).mul(depth);
+				*/
+				colorAndVarData[idx] = new jeigen.DenseMatrix(
+							new double[][]{{color},
+											{var}});
+				
 			}
 		}
-		return pointCloud;
+		
+		posDataLvl[level] = posData;
+		colorAndVarDataLvl[level] = colorAndVarData;
+		
 	}
 	
 	public int width(int level) {
@@ -94,10 +121,11 @@ public class TrackingReference {
 	}
 
 	public void importFrame(Frame currentKeyFrame) {
-		
 		keyframe = currentKeyFrame;
-		
 	}
 
+	public void invalidate() {
+		keyframe = null;
+	}
 	
 }

@@ -1,3 +1,5 @@
+import java.io.FileNotFoundException;
+import java.io.UnsupportedEncodingException;
 import java.util.Deque;
 import java.util.LinkedList;
 
@@ -24,6 +26,9 @@ public class LSDSLAM {
 	Tracker tracker;
 	
 	boolean createNewKeyFrame = false;
+	boolean trackingIsGood = true;
+	
+	final boolean SLAMEnabled = true;
 	
 	TrackingReference trackingReference;
 	TrackingReference mappingTrackingReference;
@@ -37,13 +42,16 @@ public class LSDSLAM {
 	// PUSHED in tracking, READ & CLEARED in mapping
 	Deque<Frame> unmappedTrackedFrames = new LinkedList<Frame>();
 	
+	// PUSHED by Mapping, READ & CLEARED by constraintFinder
+	Deque<Frame> newKeyFrames = new LinkedList<Frame>();
+	
+	int nextRelocIdx = -1;
 	
 	public LSDSLAM() {
 
 		trackingReference = new TrackingReference();
 		mappingTrackingReference = new TrackingReference();
 		keyFrameGraph = new KeyFrameGraph();
-		
 	}
 	
 	public void randomInit(Mat image, int id) {
@@ -58,11 +66,9 @@ public class LSDSLAM {
 		
 		keyFrameGraph.addFrame(currentKeyFrame);
 
-		//TODO:
-//		if(doSlam) {
-//			keyFrameGraph.idToKeyFrame.insert(currentKeyFrame.id(), currentKeyFrame);
-//		}
-		
+		if(SLAMEnabled) {
+			keyFrameGraph.idToKeyFrame.put(currentKeyFrame.id(), currentKeyFrame);
+		}
 		
 		System.out.println("Done random initialization.");
 	}
@@ -90,6 +96,13 @@ public class LSDSLAM {
 
 		// DO TRACKING & Show tracking result.
 		
+		/*
+		System.out.println("trackingReferencePose.getCamToWorld() : " 
+		+ trackingReferencePose.getCamToWorld().toString());
+		System.out.println(keyFrameGraph.allFramePoses
+				.get(keyFrameGraph.allFramePoses.size()-1).getCamToWorld());
+		*/
+		
 		SE3 frameToReference_initialEstimate = 
 				trackingReferencePose.getCamToWorld().inverse().mul(
 					keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1).getCamToWorld()).getSE3();
@@ -108,28 +121,26 @@ public class LSDSLAM {
 		tracking_lastGoodPerTotal = tracker.lastGoodCount / (trackingNewFrame.width(SE3TRACKING_MIN_LEVEL)*trackingNewFrame->height(SE3TRACKING_MIN_LEVEL));
 
 
-		if(manualTrackingLossIndicated || tracker.diverged || (keyFrameGraph.keyframesAll.size() > INITIALIZATION_PHASE_COUNT && !tracker->trackingWasGood))
+		 */
+		
+		if(Constants.manualTrackingLossIndicated || tracker.diverged || (keyFrameGraph.keyframesAll.size() > Constants.INITIALIZATION_PHASE_COUNT && !tracker.trackingWasGood))
 		{
+			/*
 			printf("TRACKING LOST for frame %d (%1.2f%% good Points, which is %1.2f%% of available points, %s)!\n",
-					trackingNewFrame->id(),
+					trackingNewFrame.id(),
 					100*tracking_lastGoodPerTotal,
 					100*tracking_lastGoodPerBad,
-					tracker->diverged ? "DIVERGED" : "NOT DIVERGED");
-
-			trackingReference->invalidate();
+					tracker.diverged ? "DIVERGED" : "NOT DIVERGED");
+			*/
+			trackingReference.invalidate();
 
 			trackingIsGood = false;
 			nextRelocIdx = -1;
 
-			unmappedTrackedFramesMutex.lock();
-			unmappedTrackedFramesSignal.notify_one();
-			unmappedTrackedFramesMutex.unlock();
-
-			manualTrackingLossIndicated = false;
+			Constants.manualTrackingLossIndicated = false;
 			return;
 		}
 		 
-		 */
 
 		keyFrameGraph.addFrame(trackingNewFrame);
 		
@@ -154,7 +165,7 @@ public class LSDSLAM {
 					(float) Vec.dot(distVec, distVec), tracker.pointUsage);
 
 			if (lastTrackingClosenessScore > minVal) {
-				//System.err.println("CREATE NEW KEYFRAME");
+				System.err.println("CREATE NEW KEYFRAME");
 				createNewKeyFrame = true;
 			} else {
 			}
@@ -181,7 +192,6 @@ public class LSDSLAM {
 			return false;
 		}
 
-		//TODO:
 		boolean trackingIsGood = tracker.trackingWasGood;
 		
 		// set mappingFrame
@@ -190,8 +200,8 @@ public class LSDSLAM {
 			if (createNewKeyFrame) {
 				System.out.println("doMappingIteration: create new keyframe");
 				// create new key frame
-				//finishCurrentKeyframe();
-				//changeKeyframe(false, true, 1.0f);
+				finishCurrentKeyframe();
+				changeKeyframe(false, true, 1.0f);
 			} else {
 				System.out.println("doMappingIteration: update keyframe");
 				// ***Update key frame here***
@@ -240,6 +250,7 @@ public class LSDSLAM {
 		while(unmappedTrackedFrames.size() > 0 &&
 				(!unmappedTrackedFrames.peekFirst().hasTrackingParent() ||
 				unmappedTrackedFrames.peekFirst().getTrackingParent() != currentKeyFrame)) {
+			
 			System.out.println("Pop " + !unmappedTrackedFrames.peekFirst().hasTrackingParent()
 					+ " " + (unmappedTrackedFrames.peekFirst().getTrackingParent() != currentKeyFrame));
 			unmappedTrackedFrames.pop();//.clear_refPixelWasGood();
@@ -257,6 +268,8 @@ public class LSDSLAM {
 
 			popped.clear_refPixelWasGood();
 			references.clear();
+			unmappedTrackedFrames.clear();
+			
 		} else {
 			return false;
 		}
@@ -268,5 +281,111 @@ public class LSDSLAM {
 
 		return true;
 	}
+
+	void finishCurrentKeyframe()
+	{
+		System.out.println("FINALIZING KF: " + currentKeyFrame.id());
 	
+		map.finalizeKeyFrame();
+	
+	
+		if(SLAMEnabled) {
+			mappingTrackingReference.importFrame(currentKeyFrame);
+			currentKeyFrame.setPermaRef(mappingTrackingReference);
+			mappingTrackingReference.invalidate();
+	
+			if(currentKeyFrame.idxInKeyframes < 0) {
+				currentKeyFrame.idxInKeyframes = keyFrameGraph.keyframesAll.size();
+				keyFrameGraph.keyframesAll.add(currentKeyFrame);
+				keyFrameGraph.totalPoints += currentKeyFrame.numPoints;
+				keyFrameGraph.totalVertices++;
+	
+				newKeyFrames.add(currentKeyFrame);
+			}
+		}
+		
+		// WRITE POINT CLOUD TO FILE
+		try {
+			keyFrameGraph.writePointCloudToFile("POINTCLOUD-" + currentKeyFrame.id() + ".xyz");
+		} catch (FileNotFoundException | UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		//if(outputWrapper!= 0)
+		//	outputWrapper->publishKeyframe(currentKeyFrame.get());
+	}
+	
+
+	void changeKeyframe(boolean noCreate, boolean force, float maxScore) {
+		Frame newReferenceKF = null;
+		Frame newKeyframeCandidate = latestTrackedFrame;
+		
+		// TODO: findRePositionCandidate
+		if(Constants.doKFReActivation && SLAMEnabled)
+		{
+			//newReferenceKF = trackableKeyFrameSearch.findRePositionCandidate(newKeyframeCandidate, maxScore);
+		}
+	
+		if(newReferenceKF != null) {
+			System.err.println("RELOCALIZE!");
+			loadNewCurrentKeyframe(newReferenceKF);
+		} else {
+			if(force) {
+				if(noCreate) {
+					trackingIsGood = false;
+					nextRelocIdx = -1;
+					System.out.println("mapping is disabled & moved outside of known map. Starting Relocalizer!\n");
+				} else {
+					createNewCurrentKeyframe(newKeyframeCandidate);
+				}
+			}
+		}
+	
+	
+		createNewKeyFrame = false;
+	}
+	
+	void loadNewCurrentKeyframe(Frame keyframeToLoad)
+	{
+		System.out.printf("RE-ACTIVATE KF %d\n", keyframeToLoad.id());
+
+		map.setFromExistingKF(keyframeToLoad);
+
+		System.out.printf("re-activate frame %d!\n", keyframeToLoad.id());
+
+		currentKeyFrame = keyFrameGraph.idToKeyFrame.get(keyframeToLoad.id());
+		currentKeyFrame.depthHasBeenUpdatedFlag = false;
+	}
+	
+	void createNewCurrentKeyframe(Frame newKeyframeCandidate)
+	{
+		System.out.printf("CREATE NEW KF %d from %d\n", newKeyframeCandidate.id(), currentKeyFrame.id());
+
+
+		if(SLAMEnabled)
+		{
+			// add NEW keyframe to id-lookup
+			keyFrameGraph.idToKeyFrame.put(newKeyframeCandidate.id(), newKeyframeCandidate);
+		}
+
+		// propagate & make new.
+		map.createKeyFrame(newKeyframeCandidate);
+
+		/*
+		if(printPropagationStatistics)
+		{
+
+			Eigen::Matrix<float, 20, 1> data;
+			data.setZero();
+			data[0] = runningStats.num_prop_attempts / ((float)width*height);
+			data[1] = (runningStats.num_prop_created + runningStats.num_prop_merged) / (float)runningStats.num_prop_attempts;
+			data[2] = runningStats.num_prop_removed_colorDiff / (float)runningStats.num_prop_attempts;
+
+			outputWrapper->publishDebugInfo(data);
+		}
+		*/
+
+		currentKeyFrame = newKeyframeCandidate;
+	}
 }

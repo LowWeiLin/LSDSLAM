@@ -71,6 +71,7 @@ public class FramePoseStruct {
 	public SIM3 getCamToWorld() {
 		return getCamToWorld(0);
 	}
+	
 	public SIM3 getCamToWorld(int recursionDepth) {
 		// prevent stack overflow
 		assert(recursionDepth < 5000);
@@ -89,8 +90,19 @@ public class FramePoseStruct {
 
 		// abs. pose is computed from the parent's abs. pose, and cached.
 		cacheValidFor = cacheValidCounter;
-
+		
+		/*
+		System.out.println("+++");
+		System.out.println(trackingParent.getCamToWorld(recursionDepth+1).toString());
+		System.out.println(thisToParent_raw.toString());
+		*/
+		
+		
 		return camToWorld = trackingParent.getCamToWorld(recursionDepth+1).mul(thisToParent_raw);
 	}
 	
+	public void invalidateCache()
+	{
+		cacheValidFor = -1;
+	}
 }

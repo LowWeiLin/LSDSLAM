@@ -1,5 +1,7 @@
 package LieAlgebra;
 
+import java.util.Arrays;
+
 import jeigen.DenseMatrix;
 
 /**
@@ -87,5 +89,9 @@ public class SIM3 {
 	
 	public SIM3 inverse() {
 		return SIM3.inverse(this);
+	}
+	
+	public String toString() {
+		return Arrays.toString(SE3.ln(this.se3)) + "["+this.scale+"]";
 	}
 }
