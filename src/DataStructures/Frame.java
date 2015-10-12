@@ -47,9 +47,9 @@ public class Frame {
 	
 	// Tracking Reference for quick test. Always available, never taken out of memory.
 	// this is used for re-localization and re-Keyframe positioning.
-	jeigen.DenseMatrix[] permaRef_posData;	// (x,y,z)
-	jeigen.DenseMatrix[] permaRef_colorAndVarData;	// (I, Var)
-	int permaRefNumPts;
+	public jeigen.DenseMatrix[] permaRef_posData;	// (x,y,z)
+	public jeigen.DenseMatrix[] permaRef_colorAndVarData;	// (I, Var)
+	public int permaRefNumPts;
 	
 	// Graph values
 	static int totalFrames = 0;

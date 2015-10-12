@@ -1,7 +1,9 @@
+package Tracking;
 import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
+import jeigen.DenseMatrix;
 import DataStructures.Frame;
 import DataStructures.TrackingReference;
 import LieAlgebra.SE3;
@@ -28,17 +30,24 @@ public class Tracker {
 	public static final float stepSizeMin[] = {1e-8f, 1e-8f, 1e-8f, 1e-8f, 1e-8f, 1e-8f};
 	
 	
+
+	public static final float lambdaInitialTestTrack = 0f;
+	public static final float stepSizeMinTestTrack = 1e-3f;
+	public static final float convergenceEpsTestTrack = 0.98f;
+	public static final int maxItsTestTrack = 5;
+	
+	
 	// Variables set when tracking
 	int warpedCount = 0; // Number of pixels warped into new image bounds
 	
-	float pointUsage = 0;
-	float lastGoodCount = 0;
-	float lastMeanRes = 0;
-	float lastBadCount = 0;
-	float lastResidual = 0;
+	public float pointUsage = 0;
+	public float lastGoodCount = 0;
+	public float lastMeanRes = 0;
+	public float lastBadCount = 0;
+	public float lastResidual = 0;
 	
-	boolean trackingWasGood = false;
-	boolean diverged = false;
+	public boolean trackingWasGood = false;
+	public boolean diverged = false;
 	
 	// Buffers for holding data of pixels warped into new image bounds
 	// Set in calculateResidualAndBuffers()
@@ -71,9 +80,7 @@ public class Tracker {
 		for (int level = 4; level < Constants.PYRAMID_LEVELS; ++level)
 			maxItsPerLvl[level] = 0;
 
-		
 	}
-	
 	
 	public void initialize(int width, int height) {
 		// Only initialize once
@@ -103,7 +110,7 @@ public class Tracker {
 	 * Estimates the pose between a reference frame and a frame.
 	 */
 	@SuppressWarnings("static-access")
-	SE3 trackFrame(TrackingReference referenceFrame, Frame frame, SE3 frameToRefInitialEstimate) {
+	public SE3 trackFrame(TrackingReference referenceFrame, Frame frame, SE3 frameToRefInitialEstimate) {
 
 		diverged = false;
 		trackingWasGood = true;
@@ -144,10 +151,11 @@ public class Tracker {
 				}
 			}
 			
-			calculateResidualAndBuffers(referenceFrame,
-										frame,
-										refToFrame,
-										level);
+			calculateResidualAndBuffers(referenceFrame.posDataLvl[level],
+					referenceFrame.colorAndVarDataLvl[level],
+					frame,
+					refToFrame,
+					level);
 			
 			// Diverge when amount of pixels successfully warped into new frame < some amount
 			if(warpedCount < Constants.MIN_GOODPERALL_PIXEL_ABSMIN * 
@@ -184,7 +192,8 @@ public class Tracker {
 					
 					
 					// Re-evaluate residual
-					calculateResidualAndBuffers(referenceFrame,
+					calculateResidualAndBuffers(referenceFrame.posDataLvl[level],
+							referenceFrame.colorAndVarDataLvl[level],
 							frame,
 							newRefToFrame,
 							level);
@@ -285,7 +294,9 @@ public class Tracker {
 	 * @return sum of un-weighted residuals, divided by good pixel count.
 	 * 
 	 */
-	public float calculateResidualAndBuffers(TrackingReference referenceFrame,
+	public float calculateResidualAndBuffers(
+			DenseMatrix[] posData,
+			DenseMatrix[] colorAndVarData,
 			Frame frame, SE3 frameToRefPose, int level) {
 		
 		calculateResidualAndBuffersCount++;
@@ -318,9 +329,9 @@ public class Tracker {
 		int numValidPoints = 0;
 		
 		// For each point in point cloud
-		for (int i=0 ; i<referenceFrame.posDataLvl[level].length ; i++) {
+		for (int i=0 ; i<posData.length ; i++) {
 			// 3D position
-			jeigen.DenseMatrix point = referenceFrame.posDataLvl[level][i];
+			jeigen.DenseMatrix point = posData[i];
 			
 			// Skip if point is not valid
 			if (point == null) {
@@ -349,7 +360,7 @@ public class Tracker {
 			float interpolatedGradientX = Utils.interpolatedValue(frame.imageGradientXArrayLvl[level], u, v, frame.width(level));
 			float interpolatedGradientY = Utils.interpolatedValue(frame.imageGradientYArrayLvl[level], u, v, frame.width(level));
 			
-			float referenceFrameIntensity = referenceFrame.keyframe.imageArrayLvl[level][i];
+			float referenceFrameIntensity = (float) colorAndVarData[i].get(0, 0);
 			
 			//
 			float c1 = referenceFrameIntensity;
@@ -367,7 +378,7 @@ public class Tracker {
 			this.bufWarpedY[warpedCount] = (float) warpedPoint.get(1, 0);
 			this.bufWarpedZ[warpedCount] = (float) warpedPoint.get(2, 0);
 			this.bufInvDepth[warpedCount] = (float) (1.0f / point.get(2, 0));
-			this.bufInvDepthVariance[warpedCount] = referenceFrame.keyframe.inverseDepthVarianceLvl[level][i];
+			this.bufInvDepthVariance[warpedCount] = (float) colorAndVarData[i].get(1, 0);
 			
 			
 			// Increase warpCount
@@ -499,4 +510,155 @@ public class Tracker {
 		
 	}
 	
+	public float checkPermaRefOverlap(Frame reference, SE3 referenceToFrameOrg)
+	{
+		SE3 referenceToFrame = referenceToFrameOrg;
+		
+		int w2 = reference.width(Constants.QUICK_KF_CHECK_LVL)-1;
+		int h2 = reference.height(Constants.QUICK_KF_CHECK_LVL)-1;
+		DenseMatrix KLvl = Constants.K[Constants.QUICK_KF_CHECK_LVL];
+		float fx_l = (float) KLvl.get(0,0);
+		float fy_l = (float) KLvl.get(1,1);
+		float cx_l = (float) KLvl.get(0,2);
+		float cy_l = (float) KLvl.get(1,2);
+
+		DenseMatrix rotMat = referenceToFrame.getRotationMat();
+		DenseMatrix transVec = referenceToFrame.getTranslationMat();
+
+		DenseMatrix[] refPoint = reference.permaRef_posData;
+		
+		float usageCount = 0;
+		for(int i=0 ; i<refPoint.length ; i++) {
+			
+			if (refPoint[i] == null) {
+				continue;
+			}
+			DenseMatrix point = refPoint[i];
+			
+			DenseMatrix Wxp = rotMat.mmul(point).add(transVec);
+			float u_new = (float) ((Wxp.get(0, 0)/Wxp.get(2, 0))*fx_l + cx_l);
+			float v_new = (float) ((Wxp.get(1, 0)/Wxp.get(2, 0))*fy_l + cy_l);
+			if((u_new > 0 && v_new > 0 && u_new < w2 && v_new < h2))
+			{
+				float depthChange = (float) ((point).get(2, 0) / Wxp.get(2, 0));
+				usageCount += depthChange < 1 ? depthChange : 1;
+			}
+		}
+
+		pointUsage = usageCount / (float)reference.permaRefNumPts;
+		return pointUsage;
+	}
+
+	public SE3 trackFrameOnPermaref(Frame reference, Frame frame, SE3 referenceToFrameOrg) {
+
+			SE3 referenceToFrame = referenceToFrameOrg;
+
+			LGS6 ls = new LGS6();
+			diverged = false;
+			trackingWasGood = true;
+
+			calculateResidualAndBuffers(reference.permaRef_posData,
+					reference.permaRef_colorAndVarData,
+					frame,
+					referenceToFrame,
+					Constants.QUICK_KF_CHECK_LVL);
+			
+			// Number of pixels warped into new image < some amount (1%) ?
+			if(warpedCount < Constants.MIN_GOODPERALL_PIXEL_ABSMIN * 
+					(frame.width(0)>>Constants.QUICK_KF_CHECK_LVL)*
+					(frame.height(0)>>Constants.QUICK_KF_CHECK_LVL))
+			{
+				// diverged/lost tracking?
+				diverged = true;
+				trackingWasGood = false;
+				return new SE3();
+			}
+			
+			float lastErr = calculateWeightsAndResidual(referenceToFrame);
+
+			float LM_lambda = lambdaInitialTestTrack;
+
+			for(int iteration=0; iteration < maxItsTestTrack; iteration++)
+			{
+				calculateWarpUpdate(ls);
+
+
+				int incTry=0;
+				while(true)
+				{
+					// solve LS system with current lambda
+					jeigen.DenseMatrix inc = calcIncrement(ls, LM_lambda);
+					incTry++;
+
+					// apply increment. pretty sure this way round is correct, but hard to test.
+					SE3 new_referenceToFrame = SE3.exp(Vec.vec6ToArray(inc)).mul(referenceToFrame);
+
+					// re-evaluate residual
+					calculateResidualAndBuffers(reference.permaRef_posData,
+							reference.permaRef_colorAndVarData,
+							frame,
+							new_referenceToFrame,
+							Constants.QUICK_KF_CHECK_LVL);
+							
+					if(warpedCount < Constants.MIN_GOODPERALL_PIXEL_ABSMIN *
+							(frame.width(0)>>Constants.QUICK_KF_CHECK_LVL)*(frame.height(0)>>Constants.QUICK_KF_CHECK_LVL))
+					{
+						diverged = true;
+						trackingWasGood = false;
+						return new SE3();
+					}
+					float error = calculateWeightsAndResidual(new_referenceToFrame);
+
+
+					// accept inc?
+					if(error < lastErr)
+					{
+						// accept inc
+						referenceToFrame = new_referenceToFrame;
+						
+						// converged?
+						if(error / lastErr > convergenceEpsTestTrack)
+							iteration = maxItsTestTrack;
+
+
+						lastErr = error;
+
+
+						if(LM_lambda <= 0.2)
+							LM_lambda = 0;
+						else
+							LM_lambda *= lambdaSuccessFac;
+
+						// Breaks while loop
+
+						break;
+					}
+					else
+					{
+
+						double[] incVec = Vec.vec6ToArray(inc);
+						double incVecDot = Vec.dot(incVec, incVec);
+						if(!(incVecDot > stepSizeMinTestTrack)) {
+							iteration = maxItsTestTrack;
+
+							// Breaks while loop
+							break;
+						}
+
+						if(LM_lambda == 0)
+							LM_lambda = 0.2f;
+						else
+							LM_lambda *= Math.pow(lambdaFailFac, incTry);
+					}
+				}
+			}
+
+			lastResidual = lastErr;
+
+			trackingWasGood = !diverged
+					&& lastGoodCount / (frame.width(Constants.QUICK_KF_CHECK_LVL)*frame.height(Constants.QUICK_KF_CHECK_LVL)) > Constants.MIN_GOODPERALL_PIXEL
+					&& lastGoodCount / (lastGoodCount + lastBadCount) > Constants.MIN_GOODPERGOODBAD_PIXEL;
+
+			return referenceToFrame;
+	}
 }

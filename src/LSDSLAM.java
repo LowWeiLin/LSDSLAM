@@ -15,6 +15,7 @@ import DepthEstimation.DepthMap;
 import GlobalMapping.TrackableKeyFrameSearch;
 import LieAlgebra.SE3;
 import LieAlgebra.Vec;
+import Tracking.Tracker;
 import Utils.Constants;
 
 
@@ -36,8 +37,7 @@ public class LSDSLAM {
 	
 	Frame latestTrackedFrame;
 	float lastTrackingClosenessScore;
-	TrackableKeyFrameSearch trackableKeyFrameSearch = new TrackableKeyFrameSearch();
-	
+	TrackableKeyFrameSearch trackableKeyFrameSearch = null;
 
 	// PUSHED in tracking, READ & CLEARED in mapping
 	Deque<Frame> unmappedTrackedFrames = new LinkedList<Frame>();
@@ -52,9 +52,15 @@ public class LSDSLAM {
 		trackingReference = new TrackingReference();
 		mappingTrackingReference = new TrackingReference();
 		keyFrameGraph = new KeyFrameGraph();
+		
 	}
 	
 	public void randomInit(Mat image, int id) {
+		
+		if (trackableKeyFrameSearch == null) {
+			trackableKeyFrameSearch = new TrackableKeyFrameSearch(keyFrameGraph, image.width(), image.height());
+		}
+		
 		map = new DepthMap(image.width(), image.height());
 		tracker = new Tracker();
 		
@@ -306,7 +312,7 @@ public class LSDSLAM {
 		
 		// WRITE POINT CLOUD TO FILE
 		try {
-			keyFrameGraph.writePointCloudToFile("POINTCLOUD-" + currentKeyFrame.id() + ".xyz");
+			keyFrameGraph.writePointCloudToFile("bPOINTCLOUD-" + currentKeyFrame.id() + ".xyz");
 		} catch (FileNotFoundException | UnsupportedEncodingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -321,7 +327,6 @@ public class LSDSLAM {
 		Frame newReferenceKF = null;
 		Frame newKeyframeCandidate = latestTrackedFrame;
 		
-		// TODO: findRePositionCandidate
 		if(Constants.doKFReActivation && SLAMEnabled)
 		{
 			//newReferenceKF = trackableKeyFrameSearch.findRePositionCandidate(newKeyframeCandidate, maxScore);

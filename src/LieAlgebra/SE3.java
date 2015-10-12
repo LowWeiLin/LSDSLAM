@@ -147,10 +147,18 @@ public class SE3 {
 		return result;
 		
 	}
+
+	public double[] ln() {
+		return SE3.ln(this);
+	}
 	
 	public static SE3 inverse(SE3 se3) {
 		SE3 inverse = new SE3(SO3.inverse(se3.getRotation()), se3.translation.mul(-1));
 		return inverse;
+	}
+	
+	public SE3 inverse() {
+		return SE3.inverse(this);
 	}
 	
 	public void setTranslation(double[] vec3) {
@@ -169,5 +177,14 @@ public class SE3 {
 	public void mulEq(SE3 se3) {
 		this.translation = this.translation.add(rotation.matrix.mmul(se3.translation));
 		this.rotation.matrix = this.rotation.matrix.mmul(se3.rotation.matrix);
+	}
+	
+	/**
+	 * Right multiply by given SE3
+	 */
+	public SE3 mul(SE3 se3) {
+		DenseMatrix translation = this.translation.add(rotation.matrix.mmul(se3.translation));
+		DenseMatrix rotation = this.rotation.matrix.mmul(se3.rotation.matrix);
+		return new SE3(new SO3(rotation), translation);
 	}
 }
