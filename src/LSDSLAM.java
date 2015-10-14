@@ -222,7 +222,9 @@ public class LSDSLAM {
 			return true;
 		} else { // Tracking is not good
 			System.err.println("Tracking was bad!");
+			
 			/*
+			// TODO: relocalize
 			
 			// invalidate map if it was valid.
 			if(map.isValid()) {
@@ -280,11 +282,6 @@ public class LSDSLAM {
 			return false;
 		}
 
-
-		// TODO: publish results so far?
-		//if(outputWrapper != 0 && continuousPCOutput && currentKeyFrame != 0)
-		//	outputWrapper->publishKeyframe(currentKeyFrame.get());
-
 		return true;
 	}
 
@@ -312,10 +309,8 @@ public class LSDSLAM {
 		
 		// WRITE POINT CLOUD TO FILE
 		try {
-			keyFrameGraph.writePointCloudToFile("bPOINTCLOUD-" + currentKeyFrame.id() + ".xyz");
+			keyFrameGraph.writePointCloudToFile("graphPOINTCLOUD-" + currentKeyFrame.id() + ".xyz");
 		} catch (FileNotFoundException | UnsupportedEncodingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
 		
 		//if(outputWrapper!= 0)
@@ -329,11 +324,12 @@ public class LSDSLAM {
 		
 		if(Constants.doKFReActivation && SLAMEnabled)
 		{
+			// TODO: use relocalization
 			//newReferenceKF = trackableKeyFrameSearch.findRePositionCandidate(newKeyframeCandidate, maxScore);
 		}
 	
 		if(newReferenceKF != null) {
-			System.err.println("RELOCALIZE!");
+			System.err.println("RELOCALIZED!");
 			loadNewCurrentKeyframe(newReferenceKF);
 		} else {
 			if(force) {

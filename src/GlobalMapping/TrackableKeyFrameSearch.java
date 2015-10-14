@@ -33,6 +33,7 @@ public class TrackableKeyFrameSearch {
 	{
 		tracker = new Tracker();
 		tracker.initialize(w, h);
+		this.graph = graph;
 	
 		fowX = (float) (2 * Math.atan((float)((w / Constants.K[0].get(0,0)) / 2.0f)));
 		fowY = (float) (2 * Math.atan((float)((h / Constants.K[0].get(1,1)) / 2.0f)));
@@ -48,7 +49,7 @@ public class TrackableKeyFrameSearch {
 	
 	
 
-	Frame findRePositionCandidate(Frame frame, float maxScore)
+	public Frame findRePositionCandidate(Frame frame, float maxScore)
 	{
 	    ArrayList<TrackableKFStruct> potentialReferenceFrames = findEuclideanOverlapFrames(frame, maxScore / (KFDistWeight*KFDistWeight), 0.75f);
 	    
@@ -135,12 +136,12 @@ public class TrackableKeyFrameSearch {
 			if(checkBothScales && distFacReciprocal < distFac)
 				distFac = distFacReciprocal;
 			DenseMatrix dist = (pos.sub(otherPos)).mul(distFac);
-			float dNorm2 = (float) dist.mmul(dist).get(0, 0);
+			float dNorm2 = (float) dist.mmul(dist.t()).get(0, 0);
 			if(dNorm2 > distanceTH)
 				continue;
 	
 			DenseMatrix otherViewingDir = graph.keyframesAll.get(i).getScaledCamToWorld().getRotationMat().row(1);
-			float dirDotProd = (float) otherViewingDir.mmul(viewingDir).get(0, 0);
+			float dirDotProd = (float) otherViewingDir.mmul(viewingDir.t()).get(0, 0);
 			if(dirDotProd < cosAngleTH)
 				continue;
 	

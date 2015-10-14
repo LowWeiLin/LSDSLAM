@@ -144,7 +144,7 @@ public class Tracker {
 			// TODO: Write point cloud to file
 			if (level == 1) {
 				try {
-					TrackingReference.writePointCloudToFile("pointCloud-"+frame.id()+"-"+level+".xyz",
+					TrackingReference.writePointCloudToFile("KFpointCloud-"+frame.id()+"-"+level+".xyz",
 							referenceFrame.posDataLvl[level], referenceFrame.width(level), referenceFrame.height(level));
 				} catch (FileNotFoundException | UnsupportedEncodingException e) {
 					e.printStackTrace();
@@ -327,6 +327,7 @@ public class Tracker {
 		
 		
 		int numValidPoints = 0;
+		int inImage = 0;
 		
 		// For each point in point cloud
 		for (int i=0 ; i<posData.length ; i++) {
@@ -354,6 +355,7 @@ public class Tracker {
 				// Skip this pixel
 				continue;
 			}
+			inImage++;
 			
 			// Interpolated intensity, gradient X,Y.
 			float interpolatedIntensity = Utils.interpolatedValue(frame.imageArrayLvl[level], u, v, frame.width(level));
@@ -416,6 +418,14 @@ public class Tracker {
 		lastGoodCount = goodCount;
 		lastBadCount = badCount;
 		lastMeanRes = sumSignedRes / goodCount;
+		
+//		System.out.println("calcResidualAndBuffers lvl"+ level);
+//		System.out.println("inImage " + inImage);
+//		System.out.println("numValid " + numValidPoints);
+//		System.out.println("calcResidualAndBuffers sumUnweighted " + sumResUnweighted);
+//		System.out.println("calcResidualAndBuffers good " + goodCount);
+//
+//		System.out.println("calcResidualAndBuffers " + sumResUnweighted / goodCount);
 		
 		return sumResUnweighted / goodCount;
 	}

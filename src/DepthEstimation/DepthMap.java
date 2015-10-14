@@ -136,11 +136,10 @@ public class DepthMap {
 				// For pixels with significant gradient
 				if (maxGradients[x + y * width] > Constants.MIN_ABS_GRAD_CREATE) {
 					// TODO: Get random idepth
-					// float idepth = 0.5f + 1.0f * (random.nextInt(100001) /
-					// 100000.0f);
+					float idepth = 0.5f + 1.0f * (random.nextInt(100001) /100000.0f);
 
 					// Set fixed initial depth
-					float idepth = 0.5f + 1.0f * 0.5f;
+					//float idepth = 0.5f + 1.0f * 0.5f;
 
 					// Set hypothesis, random idepth and initial variance.
 					currentDepthMap[x + y * width] = new DepthMapPixelHypothesis(
@@ -154,6 +153,7 @@ public class DepthMap {
 				}
 			}
 		}
+		System.out.println("Good grad: " + goodGrad);
 		// Set depth hypothesis depth values to keyframe
 		activeKeyFrame.setDepth(currentDepthMap);
 	}

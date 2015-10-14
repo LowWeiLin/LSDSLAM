@@ -82,8 +82,13 @@ public class LiveSLAMWrapper {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 		
 		// Set Camera parameters
-		Constants.setK(748.000000, 748.000000, 319.000000, 239.000000);
+		// My webcam
+		//Constants.setK(748.000000, 748.000000, 319.000000, 239.000000);
 		
+		// LSDSLAM example
+		//Constants.setK(254.326953888, 375.9343814832, 266.8818969728, 231.0990905728);
+		//Constants.setK(746.831, 746.442, 318.502, 238.502);
+		Constants.setK(254.327, 375.934, 266.882, 231.099);
 		
 		LiveSLAMWrapper liveSlamWrapper = new LiveSLAMWrapper();
 		liveSlamWrapper.loop();
