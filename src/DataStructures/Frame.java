@@ -15,6 +15,11 @@ import Utils.Constants;
 
 public class Frame {
 
+	public boolean isKF = false;
+	
+	int width;
+	int height;
+	
 	// Gray scale image
 	public Mat[] imageLvl;
 	public float[][] imageArrayLvl; // Array of image data for fast reading
@@ -86,7 +91,39 @@ public class Frame {
 	public float meanInformation;
 	
 	
+	/**
+	 * Clear usused data to reduce memory usage
+	 */
+	public void clearData() {
+		// Arrays
+		imageLvl = null;
+		imageArrayLvl = null;
+		imageGradientXLvl = null;
+		imageGradientXArrayLvl = null;
+		imageGradientYLvl = null;
+		imageGradientYArrayLvl = null;
+		imageGradientMaxLvl = null;
+		imageGradientMaxArrayLvl = null;
+		inverseDepthLvl = null;
+		inverseDepthVarianceLvl = null;
+		
+		// Dense Matrix
+		K_otherToThis_R = null;
+		K_otherToThis_t = null;
+		otherToThis_t = null;
+		K_thisToOther_t = null;
+		thisToOther_R = null;
+		otherToThis_R_row0 = null;
+		otherToThis_R_row1 = null;
+		otherToThis_R_row2 = null;
+		thisToOther_t = null;
+		
+	}
+	
 	public Frame(Mat image) {
+		
+		width = image.width();
+		height = image.height();
 		
 		// Set frame id
 		id = totalFrames;
@@ -236,11 +273,11 @@ public class Frame {
 	}
 	
 	public int width(int level) {
-		return imageLvl[level].width();
+		return this.width >> level;
 	}
 	
 	public int height(int level) {
-		return imageLvl[level].height();
+		return this.height >> level;
 	}
 	
 	public void setDepth(DepthMapPixelHypothesis[] newDepth) {

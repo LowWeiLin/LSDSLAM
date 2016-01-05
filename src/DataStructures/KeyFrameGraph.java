@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import LieAlgebra.SE3;
+import LieAlgebra.SIM3;
 import Utils.Constants;
 import jeigen.DenseMatrix;
 
@@ -125,8 +126,9 @@ public class KeyFrameGraph {
 										   {1}})).mul(depth);
 					
 					
-					SE3 camToWorld = keyframe.getScaledCamToWorld().getSE3();
-					DenseMatrix rotation = camToWorld.getRotationMat();
+					SIM3 camToWorldSim3 = keyframe.getScaledCamToWorld();
+					SE3 camToWorld = camToWorldSim3.getSE3();
+					DenseMatrix rotation = camToWorld.getRotationMat().div(camToWorldSim3.getScale());
 					DenseMatrix translation = camToWorld.getTranslationMat();
 					
 					posData[idx] = rotation.mmul(posData[idx]).add(translation);

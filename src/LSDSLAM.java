@@ -66,6 +66,7 @@ public class LSDSLAM {
 		
 		// New currentKeyframe
 		currentKeyFrame = new Frame(image);
+		currentKeyFrame.isKF = true;
 		
 		// Initialize map
 		map.initializeRandomly(currentKeyFrame);
@@ -173,6 +174,7 @@ public class LSDSLAM {
 			if (lastTrackingClosenessScore > minVal) {
 				System.err.println("CREATE NEW KEYFRAME");
 				createNewKeyFrame = true;
+				trackingNewFrame.isKF = true;
 			} else {
 			}
 		}
@@ -275,6 +277,14 @@ public class LSDSLAM {
 			map.updateKeyframe(references);
 
 			popped.clear_refPixelWasGood();
+			
+			// CLEAR DATA
+			for (Frame f : references) {
+				if (!createNewKeyFrame && f.isKF == false) {
+					f.clearData();
+				}
+			}
+			
 			references.clear();
 			unmappedTrackedFrames.clear();
 			
