@@ -14,7 +14,7 @@ public class LiveSLAMWrapper {
 	int imageSeqNumber = 0;
 	LSDSLAM lsdSlam = new LSDSLAM();
 	
-	final String imagesDirectory = "images";
+	final String imagesDirectory = "images-g_1";
 	
 	public LiveSLAMWrapper() {
 	}
@@ -44,6 +44,7 @@ public class LiveSLAMWrapper {
 	}
 	
 	public void newImageCallback(Mat image) {
+		System.gc();
 		System.out.println("-------\nFrame " + imageSeqNumber + "\n-------");
 		
 		// Increment image sequence number
@@ -86,9 +87,12 @@ public class LiveSLAMWrapper {
 		//Constants.setK(748.000000, 748.000000, 319.000000, 239.000000);
 		
 		// LSDSLAM example
-		//Constants.setK(254.326953888, 375.9343814832, 266.8818969728, 231.0990905728);
-		//Constants.setK(746.831, 746.442, 318.502, 238.502);
-		Constants.setK(254.327, 375.934, 266.882, 231.099);
+		//Constants.setK(254.327, 375.934, 266.882, 231.099);
+		
+		
+		// GoPro - studio undistort
+		Constants.setK(282.3554769, 282.37401685, 316.8959948, 245.18105368);
+		
 		
 		LiveSLAMWrapper liveSlamWrapper = new LiveSLAMWrapper();
 		liveSlamWrapper.loop();
