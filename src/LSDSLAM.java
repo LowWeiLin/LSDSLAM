@@ -85,11 +85,11 @@ public class LSDSLAM {
 		Frame trackingNewFrame = new Frame(image);
 		
 		// TODO: implement
-		/*
 		if(!trackingIsGood)
 		{
-			relocalizer.updateCurrentFrame(trackingNewFrame);
-		}*/
+			System.err.println("RELOCALIZE");
+			//relocalizer.updateCurrentFrame(trackingNewFrame);
+		}
 		
 		boolean my_createNewKeyframe = createNewKeyFrame; // pre-save here, to make decision afterwards.
 		if(trackingReference.keyframe != currentKeyFrame ||
@@ -132,6 +132,11 @@ public class LSDSLAM {
 		
 		if(Constants.manualTrackingLossIndicated || tracker.diverged || (keyFrameGraph.keyframesAll.size() > Constants.INITIALIZATION_PHASE_COUNT && !tracker.trackingWasGood))
 		{
+			System.out.println("manualTrackingLossIndicated: " + Boolean.toString(Constants.manualTrackingLossIndicated));
+			System.out.println("keyFrameGraph.keyframesAll.size(): " + keyFrameGraph.keyframesAll.size());
+			System.out.println("tracker.trackingWasGood: " + Boolean.toString(tracker.trackingWasGood));
+			System.out.println("tracker.diverged: " + Boolean.toString(tracker.diverged));
+			
 			/*
 			printf("TRACKING LOST for frame %d (%1.2f%% good Points, which is %1.2f%% of available points, %s)!\n",
 					trackingNewFrame.id(),
@@ -225,19 +230,23 @@ public class LSDSLAM {
 		} else { // Tracking is not good
 			System.err.println("Tracking was bad!");
 			
-			/*
+			
 			// TODO: relocalize
+			System.err.println("Relocalize (2)");
+			
 			
 			// invalidate map if it was valid.
 			if(map.isValid()) {
-				if(currentKeyFrame.numMappedOnThisTotal >= MIN_NUM_MAPPED) {
-					//finishCurrentKeyframe();
+				if(currentKeyFrame.numMappedOnThisTotal >= Constants.MIN_NUM_MAPPED) {
+					finishCurrentKeyframe();
 				} else {
+					System.err.println("DiscardCurrentkeyFrame");
 					//discardCurrentKeyframe();
 				}
-				map.invalidate();
+				System.err.println("map.invalidate");
+				//map.invalidate();
 			}
-
+			/*
 			// start relocalizer if it isnt running already
 			if(!relocalizer.isRunning)
 				relocalizer.start(keyFrameGraph->keyframesAll);

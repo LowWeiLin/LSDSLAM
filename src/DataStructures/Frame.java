@@ -92,9 +92,12 @@ public class Frame {
 	
 	
 	/**
-	 * Clear usused data to reduce memory usage
+	 * Clear unused data to reduce memory usage
 	 */
 	public void clearData() {
+		if (this.isKF)
+			return;
+		
 		// Arrays
 		imageLvl = null;
 		imageArrayLvl = null;

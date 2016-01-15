@@ -80,6 +80,11 @@ public class KeyFrameGraph {
 		
 
 		for (int f=0 ; f<keyframesAll.size() ; f++) {
+			if (keyframesAll.size() > 10 && f < 10) {
+				// Skip writing first 10 KFs, since they may not be accurate yet.
+				continue;
+			}
+			
 			Frame keyframe = keyframesAll.get(f);
 			System.out.println("WRITING KF "+keyframe.id);
 			

@@ -122,6 +122,8 @@ public class Tracker {
 		SE3 frameToRefEstimate = frameToRefInitialEstimate;
 		SE3 refToFrame = SE3.inverse(frameToRefEstimate);
 		
+		refToFrame = new SE3();
+		
 		System.out.println("---tracking "+ frame.id() +" ---");
 		System.out.println("Init refToFrame: "+Arrays.toString(SE3.ln(refToFrame)));
 		
