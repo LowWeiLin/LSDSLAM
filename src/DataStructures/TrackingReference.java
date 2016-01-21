@@ -1,20 +1,22 @@
 package DataStructures;
 
 import java.io.FileNotFoundException;
-import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
 
+import jeigen.DenseMatrix;
+import LieAlgebra.SE3;
 import Utils.Constants;
+import Utils.PlyWriter;
 
 public class TrackingReference {
 
 	public Frame keyframe;
 	
-	
-	
 	// Array of vector3, for each pyramid level. posData, makes up the point cloud.
-	public jeigen.DenseMatrix[][] posDataLvl = new jeigen.DenseMatrix[Constants.PYRAMID_LEVELS][];
-	public jeigen.DenseMatrix[][] colorAndVarDataLvl = new jeigen.DenseMatrix[Constants.PYRAMID_LEVELS][];
+	public DenseMatrix[][] posDataLvl = new DenseMatrix[Constants.PYRAMID_LEVELS][];
+	public DenseMatrix[][] colorAndVarDataLvl = new DenseMatrix[Constants.PYRAMID_LEVELS][];
 	
 	/**
 	 * ReferenceFrame constructor
@@ -39,8 +41,8 @@ public class TrackingReference {
 		float[] inverseDepth = keyframe.inverseDepthLvl[level];
 		float[] inverseDepthVariance = keyframe.inverseDepthVarianceLvl[level];
 		
-		jeigen.DenseMatrix[] posData = new jeigen.DenseMatrix[width*height];
-		jeigen.DenseMatrix[] colorAndVarData = new jeigen.DenseMatrix[width*height];
+		DenseMatrix[] posData = new DenseMatrix[width*height];
+		DenseMatrix[] colorAndVarData = new DenseMatrix[width*height];
 		
 		double fxInv = Constants.fxInv[level];
 		double fyInv = Constants.fyInv[level];
@@ -65,22 +67,21 @@ public class TrackingReference {
 				
 				float color = image[idx];
 				
-				float depth = (float) (1.0/idepth);
-				
 				// Set point, calculated from inverse depth
 				
-				posData[idx] = (new jeigen.DenseMatrix(
+				posData[idx] = (new DenseMatrix(
 						new double[][]{{fxInv*x + cxInv},
 									   {fyInv*y + cyInv},
 									   {1}})).div(idepth);
 				
 				/*
-				posData[idx] = (new jeigen.DenseMatrix(
+				float depth = (float) (1.0/idepth);
+				posData[idx] = (new DenseMatrix(
 						new double[][]{{fxInv*x + cxInv},
 									   {fyInv*y + cyInv},
 									   {1}})).mul(depth);
 				*/
-				colorAndVarData[idx] = new jeigen.DenseMatrix(
+				colorAndVarData[idx] = new DenseMatrix(
 							new double[][]{{color},
 											{var}});
 				
@@ -100,24 +101,29 @@ public class TrackingReference {
 		return keyframe.height(level);
 	}
 	
-	public static void writePointCloudToFile(String filename, jeigen.DenseMatrix[] pointCloud, int width, int height) throws FileNotFoundException, UnsupportedEncodingException {
-		PrintWriter writer = new PrintWriter(filename, "ASCII");
-	
-		writer.println(3);
+	public void writePointCloudToFile(String filename, DenseMatrix[] pointCloud, int width, int height) throws FileNotFoundException, UnsupportedEncodingException {
+
+		List<DenseMatrix> cameraPosePoints = generateCameraPosePoints();
+		List<DenseMatrix> allPoints = new ArrayList<DenseMatrix>();
 		
+		// Insert point cloud points
 		int size = width*height;
-		for (int i=0 ; i<size ; i++) {		
+		for (int i=0 ; i<size ; i++) {
 			if (pointCloud[i] == null) {
 				continue;
 			}
-			
-			writer.printf("%.6f ", pointCloud[i].get(0, 0));
-			writer.printf("%.6f ", pointCloud[i].get(1, 0));
-			writer.printf("%.6f\n", pointCloud[i].get(2, 0));
-			
+			allPoints.add(pointCloud[i]);
+		}
+		
+		// Insert camera points
+		for (int i=0 ; i<cameraPosePoints.size() ; i++) {
+			DenseMatrix point = cameraPosePoints.get(i);
+			allPoints.add(point);
  		}
 		
-		writer.close();
+		// Write to file
+		PlyWriter.writePoints(filename, allPoints);
+		
 	}
 
 	public void importFrame(Frame currentKeyFrame) {
@@ -126,6 +132,26 @@ public class TrackingReference {
 
 	public void invalidate() {
 		keyframe = null;
+	}
+	
+	public List<DenseMatrix> generateCameraPosePoints() {
+		List<SE3> cameraPose = keyframe.trackedOnPoses;
+		
+		List<DenseMatrix> cameraPoints = new ArrayList<>();
+		
+		for (int i=0 ; i<cameraPose.size() ; i++) {
+			SE3 se3 = cameraPose.get(i);
+			DenseMatrix point = new DenseMatrix(
+					new double[][]{{se3.translation.get(0, 0)},
+								   {se3.translation.get(1, 0)},
+								   {se3.translation.get(2, 0)},
+								   {255},
+								   {0},
+								   {0}});
+			cameraPoints.add(point);
+		}
+		
+		return cameraPoints;
 	}
 	
 }

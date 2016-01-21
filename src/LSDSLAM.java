@@ -328,7 +328,7 @@ public class LSDSLAM {
 		
 		// WRITE POINT CLOUD TO FILE
 		try {
-			keyFrameGraph.writePointCloudToFile("graphPOINTCLOUD-" + currentKeyFrame.id() + ".xyz");
+			keyFrameGraph.writePointCloudToFile("graphPOINTCLOUD-" + currentKeyFrame.id() + ".ply");
 		} catch (FileNotFoundException | UnsupportedEncodingException e) {
 		}
 		

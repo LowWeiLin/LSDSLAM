@@ -82,6 +82,12 @@ public class SIM3 {
 		return newSim3;
 	}
 	
+	public DenseMatrix mul(DenseMatrix point) {
+		return new DenseMatrix(this.getTranslationMat().add(
+				this.getRotationMat().mmul(
+						point.mul(this.getScale()))));
+	}
+	
 	public static SIM3 inverse(SIM3 sim3) {
 		SIM3 inverse = new SIM3(SE3.inverse(sim3.se3), sim3.scale);
 		return inverse;

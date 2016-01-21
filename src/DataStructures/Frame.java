@@ -1,5 +1,7 @@
 package DataStructures;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import jeigen.DenseMatrix;
 
@@ -8,6 +10,7 @@ import org.opencv.core.Mat;
 import org.opencv.core.Size;
 
 import DepthEstimation.DepthMapPixelHypothesis;
+import LieAlgebra.SE3;
 import LieAlgebra.SIM3;
 import LieAlgebra.Vec;
 import Utils.Constants;
@@ -16,6 +19,7 @@ import Utils.Constants;
 public class Frame {
 
 	public boolean isKF = false;
+	public List<SE3> trackedOnPoses = new ArrayList<SE3>();
 	
 	int width;
 	int height;

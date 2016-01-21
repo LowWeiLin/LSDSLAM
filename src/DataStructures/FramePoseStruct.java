@@ -77,19 +77,23 @@ public class FramePoseStruct {
 		assert(recursionDepth < 5000);
 
 		// if the node is in the graph, it's absolute pose is only changed by optimization.
-		if(isOptimized) return camToWorld;
+		//if(isOptimized) return camToWorld;
 
 
+		/*
+		
 		// return chached pose, if still valid.
 		if(cacheValidFor == cacheValidCounter)
 			return camToWorld;
 
+		// abs. pose is computed from the parent's abs. pose, and cached.
+		cacheValidFor = cacheValidCounter;
+		*/
+		
+
 		// return id if there is no parent (very first frame)
 		if(trackingParent == null)
 			return camToWorld = new SIM3();
-
-		// abs. pose is computed from the parent's abs. pose, and cached.
-		cacheValidFor = cacheValidCounter;
 		
 		/*
 		System.out.println("+++");

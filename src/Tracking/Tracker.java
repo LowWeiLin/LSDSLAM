@@ -122,7 +122,11 @@ public class Tracker {
 		SE3 frameToRefEstimate = frameToRefInitialEstimate;
 		SE3 refToFrame = SE3.inverse(frameToRefEstimate);
 		
-		refToFrame = new SE3();
+		
+		// TODO: set a condition
+		//if (refToFrame.) {
+			refToFrame = new SE3();
+		//}
 		
 		System.out.println("---tracking "+ frame.id() +" ---");
 		System.out.println("Init refToFrame: "+Arrays.toString(SE3.ln(refToFrame)));
@@ -146,7 +150,7 @@ public class Tracker {
 			// TODO: Write point cloud to file
 			if (level == 1) {
 				try {
-					TrackingReference.writePointCloudToFile("KFpointCloud-"+frame.id()+"-"+level+".xyz",
+					referenceFrame.writePointCloudToFile("KFpointCloud-"+frame.id()+"-"+level+".ply",
 							referenceFrame.posDataLvl[level], referenceFrame.width(level), referenceFrame.height(level));
 				} catch (FileNotFoundException | UnsupportedEncodingException e) {
 					e.printStackTrace();
@@ -268,9 +272,15 @@ public class Tracker {
 		frame.pose.thisToParent_raw = new SIM3(SE3.inverse(refToFrame), 1);
 		frame.pose.trackingParent = referenceFrame.keyframe.pose;
 		
-		System.out.println("Final frameToRef: " + Arrays.toString(SE3.ln(SE3.inverse(refToFrame))));
+		
+		SE3 frameToRef = SE3.inverse(refToFrame);
+		
+		System.out.println("Final frameToRef: " + Arrays.toString(SE3.ln(frameToRef)));
 
-		return SE3.inverse(refToFrame);
+		// Add frameToRef to reference frame
+		referenceFrame.keyframe.trackedOnPoses.add(frameToRef);
+		
+		return frameToRef;
 	}
 	
 	private jeigen.DenseMatrix calcIncrement(LGS6 ls, float LM_lambda) {
@@ -329,7 +339,7 @@ public class Tracker {
 		
 		
 		int numValidPoints = 0;
-		int inImage = 0;
+		//int inImage = 0;
 		
 		// For each point in point cloud
 		for (int i=0 ; i<posData.length ; i++) {
@@ -357,7 +367,7 @@ public class Tracker {
 				// Skip this pixel
 				continue;
 			}
-			inImage++;
+			//inImage++;
 			
 			// Interpolated intensity, gradient X,Y.
 			float interpolatedIntensity = Utils.interpolatedValue(frame.imageArrayLvl[level], u, v, frame.width(level));

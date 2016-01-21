@@ -1,16 +1,17 @@
 package DataStructures;
 
 import java.io.FileNotFoundException;
-import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import jeigen.DenseMatrix;
 import LieAlgebra.SE3;
 import LieAlgebra.SIM3;
 import Utils.Constants;
-import jeigen.DenseMatrix;
+import Utils.PlyWriter;
 
 public class KeyFrameGraph {
 
@@ -73,17 +74,17 @@ public class KeyFrameGraph {
 	public void writePointCloudToFile(String filename
 			) throws FileNotFoundException, UnsupportedEncodingException {
 		
-		PrintWriter writer = new PrintWriter(filename, "ASCII");
-	
-		writer.println(3);
+		List<DenseMatrix> allPoints = new ArrayList<DenseMatrix>();
 		
-		
-
 		for (int f=0 ; f<keyframesAll.size() ; f++) {
-			if (keyframesAll.size() > 10 && f < 10) {
-				// Skip writing first 10 KFs, since they may not be accurate yet.
-				continue;
+			
+			/*
+			if (keyframesAll.size() < 5 && f > 0) {
+				// Skip merging first 10 KFs, since they may not be accurate yet.
+				break;
 			}
+			*/
+			
 			
 			Frame keyframe = keyframesAll.get(f);
 			System.out.println("WRITING KF "+keyframe.id);
@@ -92,17 +93,24 @@ public class KeyFrameGraph {
 			int height = keyframe.height(0);
 			int size = width*height;
 
-			float[] image = keyframe.imageArrayLvl[0];
+			//float[] image = keyframe.imageArrayLvl[0];
 			float[] inverseDepth = keyframe.inverseDepthLvl[0];
 			float[] inverseDepthVariance = keyframe.inverseDepthVarianceLvl[0];
 			
+			// To store position of points
 			jeigen.DenseMatrix[] posData = new jeigen.DenseMatrix[size];
-			jeigen.DenseMatrix[] colorAndVarData = new jeigen.DenseMatrix[size];
+			//jeigen.DenseMatrix[] colorAndVarData = new jeigen.DenseMatrix[size];
 			
 			double fxInv = Constants.fxInv[0];
 			double fyInv = Constants.fyInv[0];
 			double cxInv = Constants.cxInv[0];
 			double cyInv = Constants.cyInv[0];
+			
+			// For transformation
+			SIM3 camToWorldSim3 = keyframe.getScaledCamToWorld();
+			SE3 camToWorld = camToWorldSim3.getSE3();
+			DenseMatrix rotation = camToWorld.getRotationMat().div(camToWorldSim3.getScale());
+			DenseMatrix translation = camToWorld.getTranslationMat();
 			
 			for (int x=1 ; x<width-1 ; x++) {
 				for (int y=1 ; y<height-1 ; y++) {
@@ -115,52 +123,76 @@ public class KeyFrameGraph {
 					float var = inverseDepthVariance[idx];
 
 					// Skip if depth/variance is not valid
-					if(idepth == 0 || var <= 0) {
+					if(idepth <= 0 || var <= 0) {
 						posData[idx] = null;
 						continue;
 					}
 					
-					float color = image[idx];
-					
+					//float color = image[idx];
 					float depth = (float) (1.0/idepth);
 					
-					// Set point, calculated from inverse depth
+					// Set point position, calculated from inverse depth
 					posData[idx] = (new jeigen.DenseMatrix(
 							new double[][]{{fxInv*x + cxInv},
 										   {fyInv*y + cyInv},
 										   {1}})).mul(depth);
 					
 					
-					SIM3 camToWorldSim3 = keyframe.getScaledCamToWorld();
-					SE3 camToWorld = camToWorldSim3.getSE3();
-					DenseMatrix rotation = camToWorld.getRotationMat().div(camToWorldSim3.getScale());
-					DenseMatrix translation = camToWorld.getTranslationMat();
+					// Transform to world coordinates, based on first KF
+					// TODO: check if this is correct.
+					//posData[idx] = rotation.mmul(posData[idx]).add(translation);
+					posData[idx] = camToWorldSim3.mul(posData[idx]);
 					
-					posData[idx] = rotation.mmul(posData[idx]).add(translation);
-					
+					/*
 					colorAndVarData[idx] = new jeigen.DenseMatrix(
 								new double[][]{{color},
 												{var}});
+					*/
 					
 				}
 			}
-			
+
+			// Add tracking camera points
+			for (int i=1 ; i<keyframe.trackedOnPoses.size() ; i++) {
+				DenseMatrix cameraPoint = keyframe.trackedOnPoses.get(i).translation;
+				//cameraPoint =  rotation.mmul(cameraPoint).add(translation);
+				cameraPoint = camToWorldSim3.mul(cameraPoint);
+				allPoints.add(new DenseMatrix(
+						new double[][]{{cameraPoint.get(0, 0)},
+									   {cameraPoint.get(1, 0)},
+									   {cameraPoint.get(2, 0)},
+									   {(i == keyframe.trackedOnPoses.size()-1)?0:255},
+									   {f%2==0?255:0},
+									   {f%2==0?0:255}})); // color based on KF
+				
+			}
+
+			// Add KF camera point
+			DenseMatrix cameraPoint = new DenseMatrix(new double[][]{{0},{0},{0}});
+			//cameraPoint =  rotation.mmul(cameraPoint).add(translation);
+			cameraPoint = camToWorldSim3.mul(cameraPoint);
+			allPoints.add(new DenseMatrix(
+					new double[][]{{cameraPoint.get(0, 0)},
+								   {cameraPoint.get(1, 0)},
+								   {cameraPoint.get(2, 0)},
+								   {255},
+								   {0},
+								   {0}}));
+
+			// Add points to list
+			// TODO: Add color data?
 			for (int i=0 ; i<size ; i++) {
-				
-				
 				if (posData[i] == null) {
 					continue;
 				}
-				
-				writer.printf("%.6f ", posData[i].get(0, 0));
-				writer.printf("%.6f ", posData[i].get(1, 0));
-				writer.printf("%.6f\n", posData[i].get(2, 0));
+				allPoints.add(posData[i]);
 	 		}
 		
 		}
 		
 		
-		writer.close();
+		// Write to file
+		PlyWriter.writePoints(filename, allPoints);
 	}
 	
 }

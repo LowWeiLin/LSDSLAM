@@ -20,9 +20,9 @@ import jeigen.DenseMatrix;
 public class SE3 {
 
 	// Rotation
-	SO3 rotation;
+	public SO3 rotation;
 	// Translation, 3x1 vector
-	jeigen.DenseMatrix translation;
+	public jeigen.DenseMatrix translation;
 	
 	/**
 	 * Default constructor, initializes rotation to 0(identity) and translation to 0.
