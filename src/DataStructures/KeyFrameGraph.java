@@ -78,13 +78,6 @@ public class KeyFrameGraph {
 		
 		for (int f=0 ; f<keyframesAll.size() ; f++) {
 			
-			/*
-			if (keyframesAll.size() < 5 && f > 0) {
-				// Skip merging first 10 KFs, since they may not be accurate yet.
-				break;
-			}
-			*/
-			
 			
 			Frame keyframe = keyframesAll.get(f);
 			System.out.println("WRITING KF "+keyframe.id);
@@ -182,6 +175,12 @@ public class KeyFrameGraph {
 			// Add points to list
 			// TODO: Add color data?
 			for (int i=0 ; i<size ; i++) {
+
+				if (keyframesAll.size() > 5 && f < 5) {
+					// Skip merging first few KFs, since they may not be accurate yet.
+					break;
+				}
+				
 				if (posData[i] == null) {
 					continue;
 				}
