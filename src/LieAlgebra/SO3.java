@@ -1,5 +1,7 @@
 package LieAlgebra;
 
+import java.util.Arrays;
+
 import jeigen.DenseMatrix;
 
 /**
@@ -48,6 +50,7 @@ public class SO3 {
 	// Sets 3x3 rotation matrix
 	public void set33(jeigen.DenseMatrix mat33) {
 		this.matrix = mat33;
+		this.coerce();
 	}
 
 	/**
@@ -133,6 +136,9 @@ public class SO3 {
 	 * @return
 	 */
 	public double[] ln() {
+		
+		this.coerce();
+		
 		// 3x1 vector
 		double[] result = new double[3];
 		
@@ -147,14 +153,20 @@ public class SO3 {
 		if (cos_angle > M_SQRT1_2) {            // [0 - Pi/4[ use asin
 		    if(sin_angle_abs > 0){
 		    	final double s = Math.asin(sin_angle_abs) / sin_angle_abs;
+		    	//System.out.println("s " + s);
+		    	//System.out.println("sin_angle_abs " + sin_angle_abs);
+		    	//System.out.println("Math.asin(sin_angle_abs) " + Math.asin(sin_angle_abs));
+		    	
 		    	Vec.scalarMult(result, s);
 		    }
 		} else if( cos_angle > -M_SQRT1_2) {    // [Pi/4 - 3Pi/4[ use acos, but antisymmetric part
 			final double angle_s = Math.acos(cos_angle) / sin_angle_abs;
+			//System.out.println("angle_s " + angle_s);
 			Vec.scalarMult(result, angle_s);
 		} else {  // rest use symmetric part
 		    // antisymmetric part vanishes, but still large rotation, need information from symmetric part
 			final double angle = M_PI - Math.asin(sin_angle_abs);
+			//System.out.println("angle " + angle + " sin_angle_abs " + sin_angle_abs);
 			
 			final double d0 = my_matrix[0][0] - cos_angle,
 		        d1 = my_matrix[1][1] - cos_angle,
@@ -181,12 +193,23 @@ public class SO3 {
 		    Vec.scalarMult(r2,angle);
 		    result = r2;
 		}
+		
+		// Assert ln does not return any NaNs
+		for(double d : result) {
+			assert(!Double.isNaN(d));
+//			if (Double.isNaN(d)) {
+//				this.coerce();
+//				System.out.println("NaN, coerce");
+//				return this.ln();
+//			}
+		}
 
 		return result;
 	}
 	
 	public static SO3 inverse(SO3 so3) {
 		SO3 inverse = new SO3(so3.matrix.t());
+		inverse.assertNotNaN();
 		return inverse;
 	}
 	
@@ -195,6 +218,72 @@ public class SO3 {
 	 */
 	public void mulEq(SO3 so3) {
 		this.matrix = this.matrix.mmul(so3.matrix);
+		assertNotNaN();
 	}
 	
+	/// Modifies the matrix to make sure it is a valid rotation matrix.
+	public void coerce() {
+		
+		double[][] my_matrix = Vec.mat3ToArray(matrix);
+		
+		Vec.unit(my_matrix[0]);
+		
+	    Vec.vecMinus(my_matrix[1], Vec.cross(my_matrix[0], Vec.cross(my_matrix[0], my_matrix[1])));
+	    Vec.unit(my_matrix[1]);
+	    
+	    Vec.vecMinus(my_matrix[2], Vec.cross(my_matrix[0], Vec.cross(my_matrix[0], my_matrix[2])));
+	    Vec.vecMinus(my_matrix[2], Vec.cross(my_matrix[1], Vec.cross(my_matrix[1], my_matrix[2])));
+	    Vec.unit(my_matrix[2]);
+	    
+	    // check for positive determinant <=> right handed coordinate system of row vectors
+	    //System.out.println("det " + Vec.dot(Vec.cross(my_matrix[0], my_matrix[1]), my_matrix[2]));
+	    assert(Vec.dot(Vec.cross(my_matrix[0], my_matrix[1]), my_matrix[2]) > 0);
+	    
+	    matrix = new DenseMatrix(my_matrix);
+	    
+	}
+	
+	public void assertNotNaN() {
+		for(double d : this.ln()) {
+			assert(!Double.isNaN(d));
+		}
+	}
+	
+	public static void main(String[] args) {
+		/*
+			This matrix produces NaN, unless coerce is used.
+			
+			DenseMatrix, 3 * 3:
+			
+			0.9503329975783816 1.433254594372222 -0.07830125431187467 
+			-0.36723158708684417 1.7592919446944106 -0.6787039824560112 
+			-0.35153530338078404 0.1874873768489503 0.7036996061042502 
+		 */
+//		DenseMatrix m = new DenseMatrix(new double[][]{
+//				{0.9503329975783816, 1.433254594372222, -0.07830125431187467 },
+//				{-0.36723158708684417, 1.7592919446944106, -0.6787039824560112 },
+//				{-0.35153530338078404, 0.1874873768489503, 0.7036996061042502}});
+		
+		
+		// This matrix is to check if coerce works properly.
+		DenseMatrix m = new DenseMatrix(new double[][]{
+				{0.36, 0.48, -0.8},
+				{-0.8, 0.6, 0 },
+				{0.48, 0.64, 0.6}});
+		SO3 so3 = new SO3(m);
+		
+		System.out.println(m.t());
+		System.out.println(m.fullPivHouseholderQRSolve(jeigen.DenseMatrix.eye(3)));
+		
+		
+		so3.coerce();
+		
+		DenseMatrix m2 = so3.matrix;
+		System.out.println(m2.t());
+		System.out.println(m2.fullPivHouseholderQRSolve(jeigen.DenseMatrix.eye(3)));
+		
+		
+		System.out.println(Arrays.toString(so3.ln()));
+		
+	}
 }

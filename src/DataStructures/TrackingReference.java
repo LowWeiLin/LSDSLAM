@@ -102,7 +102,7 @@ public class TrackingReference {
 	}
 	
 	public void writePointCloudToFile(String filename, DenseMatrix[] pointCloud, int width, int height) throws FileNotFoundException, UnsupportedEncodingException {
-
+		
 		List<DenseMatrix> cameraPosePoints = generateCameraPosePoints();
 		List<DenseMatrix> allPoints = new ArrayList<DenseMatrix>();
 		
@@ -146,9 +146,25 @@ public class TrackingReference {
 								   {se3.translation.get(1, 0)},
 								   {se3.translation.get(2, 0)},
 								   {255},
-								   {0},
+								   {255},
 								   {0}});
 			cameraPoints.add(point);
+			
+			// For KF, plot the XYZ axis
+			if (i==0) {
+				DenseMatrix x = new DenseMatrix(
+						new double[][]{{0.1},{0},{0},
+									   {255},{0},{0}});
+				cameraPoints.add(x);
+				DenseMatrix y = new DenseMatrix(
+						new double[][]{{0},{0.1},{0},
+									   {0},{255},{0}});
+				cameraPoints.add(y);
+				DenseMatrix z = new DenseMatrix(
+						new double[][]{{0},{0},{0.1},
+									   {0},{0},{255}});
+				cameraPoints.add(z);
+			}
 		}
 		
 		return cameraPoints;

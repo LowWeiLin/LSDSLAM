@@ -28,18 +28,20 @@ public class SIM3 {
 	public SIM3() {
 		se3 = new SE3();
 		scale = 1;
+		assertNotNaN();
 	}
 	
 	public SIM3(SIM3 sim3) {
 		
 		this.se3 = new SE3(sim3.se3);
 		this.scale = sim3.scale;
-		
+		assertNotNaN();
 	}
 
 	public SIM3(SE3 se3, double scale) {
 		this.se3 = se3;
 		this.scale = scale;
+		assertNotNaN();
 	}
 
 	public SE3 getSE3() {
@@ -79,6 +81,8 @@ public class SIM3 {
 		newSim3.se3.rotation.mulEq(sim3.getRotation());
 		newSim3.scale *= sim3.getScale();
 		
+		newSim3.assertNotNaN();
+		
 		return newSim3;
 	}
 	
@@ -90,6 +94,7 @@ public class SIM3 {
 	
 	public static SIM3 inverse(SIM3 sim3) {
 		SIM3 inverse = new SIM3(SE3.inverse(sim3.se3), sim3.scale);
+		inverse.assertNotNaN();
 		return inverse;
 	}
 	
@@ -99,5 +104,10 @@ public class SIM3 {
 	
 	public String toString() {
 		return Arrays.toString(SE3.ln(this.se3)) + "["+this.scale+"]";
+	}
+	
+	public void assertNotNaN() {
+		assert(!Double.isNaN(scale));
+		se3.assertNotNaN();
 	}
 }

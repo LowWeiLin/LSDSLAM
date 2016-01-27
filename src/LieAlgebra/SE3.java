@@ -30,16 +30,19 @@ public class SE3 {
 	public SE3() {
 		rotation = new SO3();
 		setTranslation(0,0,0);
+		assertNotNaN();
 	}
 	
 	public SE3(SO3 rotation, jeigen.DenseMatrix translation) {
 		this.rotation = rotation;
 		this.translation = translation;
+		assertNotNaN();
 	}
 	
 	public SE3(SE3 se3) {
 		this.translation = new DenseMatrix(se3.translation);
 		this.rotation = new SO3(se3.rotation);
+		assertNotNaN();
 	}
 
 	public SO3 getRotation() {
@@ -101,24 +104,6 @@ public class SE3 {
 	    return result;
 	}
 
-	// Test
-	public static void main(String[] args) {
-		
-		double[] vec6 = new double[]{1,1,1,0.53,0,0};//{0.9257751770440343, 0.6696269810349835, 0.7949576278265412, 2.2639318115967644, 0.45278636231935293, 0.45278636231935293};//{1,1,1,0.5,0.1,0.1};
-		SE3 se3 = SE3.exp(vec6);
-		
-		// Test for number drift
-		for (int i=0 ; i<1000000 ; i++) {
-			//System.out.println("rot mat = "+se3.rotation.matrix);
-			//System.out.println("trans mat = "+se3.getTranslationMat());
-			System.out.println("vec = " +Arrays.toString(SE3.ln(se3)));
-			
-			vec6 = SE3.ln(se3);
-			se3 = SE3.exp(vec6);
-			
-		}
-	}
-	
 	public static double[] ln(SE3 se3) {
 		double[] rot = se3.getRotation().ln();
 		
@@ -144,6 +129,12 @@ public class SE3 {
 		Vec.scalarMult(rottrans,1.0/(2.0 * shtot));
 
 		double[] result = {rottrans[0],rottrans[1],rottrans[2],rot[0],rot[1],rot[2]};
+		
+		// Assert ln does not return any NaNs
+		for(double d : result) {
+			assert(!Double.isNaN(d));
+		}
+		
 		return result;
 		
 	}
@@ -154,6 +145,7 @@ public class SE3 {
 	
 	public static SE3 inverse(SE3 se3) {
 		SE3 inverse = new SE3(SO3.inverse(se3.getRotation()), se3.translation.mul(-1));
+		inverse.assertNotNaN();
 		return inverse;
 	}
 	
@@ -177,6 +169,7 @@ public class SE3 {
 	public void mulEq(SE3 se3) {
 		this.translation = this.translation.add(rotation.matrix.mmul(se3.translation));
 		this.rotation.matrix = this.rotation.matrix.mmul(se3.rotation.matrix);
+		assertNotNaN();
 	}
 	
 	/**
@@ -186,5 +179,31 @@ public class SE3 {
 		DenseMatrix translation = this.translation.add(rotation.matrix.mmul(se3.translation));
 		DenseMatrix rotation = this.rotation.matrix.mmul(se3.rotation.matrix);
 		return new SE3(new SO3(rotation), translation);
+	}
+	
+
+	public void assertNotNaN() {
+		assert(!Double.isNaN(this.translation.get(0, 0)));
+		assert(!Double.isNaN(this.translation.get(1, 0)));
+		assert(!Double.isNaN(this.translation.get(2, 0)));
+		rotation.assertNotNaN();
+	}
+
+	// Test
+	public static void main(String[] args) {
+		
+		double[] vec6 = new double[]{1,1,1,0.53,0,0};//{0.9257751770440343, 0.6696269810349835, 0.7949576278265412, 2.2639318115967644, 0.45278636231935293, 0.45278636231935293};//{1,1,1,0.5,0.1,0.1};
+		SE3 se3 = SE3.exp(vec6);
+		
+		// Test for number drift
+		for (int i=0 ; i<1000000 ; i++) {
+			//System.out.println("rot mat = "+se3.rotation.matrix);
+			//System.out.println("trans mat = "+se3.getTranslationMat());
+			System.out.println("vec = " +Arrays.toString(SE3.ln(se3)));
+			
+			vec6 = SE3.ln(se3);
+			se3 = SE3.exp(vec6);
+			
+		}
 	}
 }

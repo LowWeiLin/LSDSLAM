@@ -111,12 +111,31 @@ public class Vec {
 	}
 	
 	/**
+	 * Mult 2 vectors
+	 */
+	public static void vecMult(double[] vec0, double[] vec1) {
+		for (int i=0 ; i<vec0.length ; i++) {
+			vec0[i] *= vec1[i];
+		}
+	}
+	
+	/**
+	 * Mult 2 vectors
+	 */	
+	public static double[] vecMult2(double[] vec0, double[] vec1) {
+		double[] result = new double[vec0.length];
+		for (int i=0 ; i<vec0.length ; i++) {
+			result[i] = vec0[i] * vec1[i];
+		}
+		return result;
+	}
+	
+	/**
 	 * Make unit vector
 	 */
 	public static void unit(double[] vec) {
-		scalarMult(vec, magnitude(vec));
+		scalarMult(vec, 1./magnitude(vec));
 	}
-	
 
 	/**
 	 * 3x3 Matrix to array
