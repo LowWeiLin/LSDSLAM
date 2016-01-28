@@ -27,7 +27,7 @@ public class SIM3 {
 	 */
 	public SIM3() {
 		se3 = new SE3();
-		scale = 1;
+		scale = 1.0;
 		assertNotNaN();
 	}
 	
@@ -93,7 +93,7 @@ public class SIM3 {
 	}
 	
 	public static SIM3 inverse(SIM3 sim3) {
-		SIM3 inverse = new SIM3(SE3.inverse(sim3.se3), sim3.scale);
+		SIM3 inverse = new SIM3(SE3.inverse(sim3.se3), 1./sim3.scale);
 		inverse.assertNotNaN();
 		return inverse;
 	}

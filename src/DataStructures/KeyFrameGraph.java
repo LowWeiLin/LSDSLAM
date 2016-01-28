@@ -101,9 +101,6 @@ public class KeyFrameGraph {
 			
 			// For transformation
 			SIM3 camToWorldSim3 = keyframe.getScaledCamToWorld();
-			SE3 camToWorld = camToWorldSim3.getSE3();
-			DenseMatrix rotation = camToWorld.getRotationMat().div(camToWorldSim3.getScale());
-			DenseMatrix translation = camToWorld.getTranslationMat();
 			
 			for (int x=1 ; x<width-1 ; x++) {
 				for (int y=1 ; y<height-1 ; y++) {

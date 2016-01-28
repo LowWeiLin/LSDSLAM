@@ -268,7 +268,7 @@ public class Tracker {
 		SE3 frameToRef = SE3.inverse(refToFrame);
 
 		frame.initialTrackedResidual = lastResidual / pointUsage;
-		frame.pose.thisToParent_raw = new SIM3(frameToRef, 1);
+		frame.pose.thisToParent_raw = new SIM3(frameToRef, 1.0);
 		frame.pose.trackingParent = referenceFrame.keyframe.pose;
 		
 		// Add frameToRef to reference frame
