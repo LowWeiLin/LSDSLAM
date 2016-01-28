@@ -1,5 +1,6 @@
 import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.LinkedList;
 
@@ -110,10 +111,20 @@ public class LSDSLAM {
 				.get(keyFrameGraph.allFramePoses.size()-1).getCamToWorld());
 		*/
 		
+		/*
+		// THIS GIVES THE WRONG ESTIMATE!
 		SE3 frameToReference_initialEstimate = 
 				trackingReferencePose.getCamToWorld().inverse().mul(
-					keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1).getCamToWorld()).getSE3();
-
+					keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)
+					.getCamToWorld()).getSE3();
+		*/
+		SE3 frameToReference_initialEstimate = null;
+		if (trackingReference.keyframe.trackedOnPoses.size() > 0) {
+			frameToReference_initialEstimate = trackingReference.keyframe.trackedOnPoses.get(
+					trackingReference.keyframe.trackedOnPoses.size()-1);
+		} else {
+			frameToReference_initialEstimate = new SE3();
+		}
 		SE3 newRefToFrame_poseUpdate = tracker.trackFrame(
 				trackingReference,
 				trackingNewFrame,

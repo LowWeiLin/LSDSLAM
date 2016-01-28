@@ -124,6 +124,7 @@ public class Tracker {
 		
 		
 		System.out.println("---tracking "+ frame.id() +" ---");
+		System.out.println("Init frameToRefInitialEstimate: "+Arrays.toString(SE3.ln(frameToRefInitialEstimate)));
 		System.out.println("Init refToFrame: "+Arrays.toString(SE3.ln(refToFrame)));
 		
 		// LS
@@ -262,18 +263,18 @@ public class Tracker {
 
 		if(trackingWasGood)
 			referenceFrame.keyframe.numFramesTrackedOnThis++;
+		
+
+		SE3 frameToRef = SE3.inverse(refToFrame);
 
 		frame.initialTrackedResidual = lastResidual / pointUsage;
-		frame.pose.thisToParent_raw = new SIM3(SE3.inverse(refToFrame), 1);
+		frame.pose.thisToParent_raw = new SIM3(frameToRef, 1);
 		frame.pose.trackingParent = referenceFrame.keyframe.pose;
 		
-		
-		SE3 frameToRef = SE3.inverse(refToFrame);
-		
-		System.out.println("Final frameToRef: " + Arrays.toString(SE3.ln(frameToRef)));
-
 		// Add frameToRef to reference frame
 		referenceFrame.keyframe.trackedOnPoses.add(frameToRef);
+
+		System.out.println("Final frameToRef: " + Arrays.toString(SE3.ln(frameToRef)));
 		
 		return frameToRef;
 	}

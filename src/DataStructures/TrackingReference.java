@@ -139,32 +139,34 @@ public class TrackingReference {
 		
 		List<DenseMatrix> cameraPoints = new ArrayList<>();
 		
+		// For KF, Plot the XYZ axis
+		DenseMatrix c = new DenseMatrix(
+				new double[][]{{0},{0},{0},
+							   {255},{255},{0}});
+		cameraPoints.add(c);
+		DenseMatrix x = new DenseMatrix(
+				new double[][]{{0.1},{0},{0},
+							   {255},{0},{0}});
+		cameraPoints.add(x);
+		DenseMatrix y = new DenseMatrix(
+				new double[][]{{0},{0.1},{0},
+							   {0},{255},{0}});
+		cameraPoints.add(y);
+		DenseMatrix z = new DenseMatrix(
+				new double[][]{{0},{0},{0.1},
+							   {0},{0},{255}});
+		cameraPoints.add(z);
+		
 		for (int i=0 ; i<cameraPose.size() ; i++) {
 			SE3 se3 = cameraPose.get(i);
 			DenseMatrix point = new DenseMatrix(
 					new double[][]{{se3.translation.get(0, 0)},
 								   {se3.translation.get(1, 0)},
 								   {se3.translation.get(2, 0)},
-								   {255},
-								   {255},
-								   {0}});
+								   {255},{0},{0}});
 			cameraPoints.add(point);
 			
-			// For KF, plot the XYZ axis
-			if (i==0) {
-				DenseMatrix x = new DenseMatrix(
-						new double[][]{{0.1},{0},{0},
-									   {255},{0},{0}});
-				cameraPoints.add(x);
-				DenseMatrix y = new DenseMatrix(
-						new double[][]{{0},{0.1},{0},
-									   {0},{255},{0}});
-				cameraPoints.add(y);
-				DenseMatrix z = new DenseMatrix(
-						new double[][]{{0},{0},{0.1},
-									   {0},{0},{255}});
-				cameraPoints.add(z);
-			}
+			
 		}
 		
 		return cameraPoints;
