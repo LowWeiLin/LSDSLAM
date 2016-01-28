@@ -86,13 +86,13 @@ public class KeyFrameGraph {
 			int height = keyframe.height(0);
 			int size = width*height;
 
-			//float[] image = keyframe.imageArrayLvl[0];
+			float[] image = keyframe.imageArrayLvl[0];
 			float[] inverseDepth = keyframe.inverseDepthLvl[0];
 			float[] inverseDepthVariance = keyframe.inverseDepthVarianceLvl[0];
 			
 			// To store position of points
 			jeigen.DenseMatrix[] posData = new jeigen.DenseMatrix[size];
-			//jeigen.DenseMatrix[] colorAndVarData = new jeigen.DenseMatrix[size];
+			jeigen.DenseMatrix[] colorAndVarData = new jeigen.DenseMatrix[size];
 			
 			double fxInv = Constants.fxInv[0];
 			double fyInv = Constants.fyInv[0];
@@ -121,7 +121,7 @@ public class KeyFrameGraph {
 						continue;
 					}
 					
-					//float color = image[idx];
+					float color = image[idx];
 					float depth = (float) (1.0/idepth);
 					
 					// Set point position, calculated from inverse depth
@@ -132,15 +132,13 @@ public class KeyFrameGraph {
 					
 					
 					// Transform to world coordinates, based on first KF
-					// TODO: check if this is correct.
-					//posData[idx] = rotation.mmul(posData[idx]).add(translation);
 					posData[idx] = camToWorldSim3.mul(posData[idx]);
 					
-					/*
+					
 					colorAndVarData[idx] = new jeigen.DenseMatrix(
 								new double[][]{{color},
 												{var}});
-					*/
+					
 					
 				}
 			}
@@ -184,7 +182,9 @@ public class KeyFrameGraph {
 				if (posData[i] == null) {
 					continue;
 				}
-				allPoints.add(posData[i]);
+				double color = colorAndVarData[i].get(0, 0);
+				allPoints.add(posData[i].concatDown(new DenseMatrix(
+						new double[][]{{color},{color},{color}})));
 	 		}
 		
 		}
