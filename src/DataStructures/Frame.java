@@ -1,7 +1,9 @@
 package DataStructures;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import jeigen.DenseMatrix;
 
@@ -14,6 +16,7 @@ import LieAlgebra.SE3;
 import LieAlgebra.SIM3;
 import LieAlgebra.Vec;
 import Utils.Constants;
+import Utils.ListMap;
 
 
 public class Frame {
@@ -65,8 +68,14 @@ public class Frame {
 	int id;
 	public FramePoseStruct pose;
 	public int idxInKeyframes = -1;
+
+	public SIM3 lastConstraintTrackedCamToWorld;
+	/** Pointers to all adjacent Frames in graph. empty for non-keyframes.*/
+	public Set<Frame> neighbors = new HashSet<Frame>();
 		
-	
+
+	/** Multi-Map indicating for which other keyframes with which initialization tracking failed.*/
+	public ListMap<Frame, SIM3> trackingFailed = new ListMap<Frame, SIM3>();
 
 	// Temporary values
 	public int referenceID;
@@ -83,6 +92,10 @@ public class Frame {
 	public jeigen.DenseMatrix thisToOther_t; // vec3
 	
 
+	
+	
+	
+	
 	// statistics
 	public float initialTrackedResidual;
 	public int numFramesTrackedOnThis;

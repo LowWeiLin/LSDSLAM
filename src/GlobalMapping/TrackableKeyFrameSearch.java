@@ -1,13 +1,16 @@
 package GlobalMapping;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import jeigen.DenseMatrix;
 import DataStructures.Frame;
 import DataStructures.KeyFrameGraph;
 import LieAlgebra.SE3;
 import LieAlgebra.Vec;
-import Tracking.Tracker;
+import Tracking.SE3Tracker;
 import Utils.Constants;
 
 public class TrackableKeyFrameSearch {
@@ -25,13 +28,13 @@ public class TrackableKeyFrameSearch {
 
 
 	KeyFrameGraph graph;
-	Tracker tracker;
+	SE3Tracker tracker;
 	float fowX, fowY;
 	
 
 	public TrackableKeyFrameSearch(KeyFrameGraph graph, int w, int h)
 	{
-		tracker = new Tracker();
+		tracker = new SE3Tracker();
 		tracker.initialize(w, h);
 		this.graph = graph;
 	
@@ -127,6 +130,7 @@ public class TrackableKeyFrameSearch {
 			distFacReciprocal = (float) (frame.meanIdepth / frame.getScaledCamToWorld().getScale());
 	
 		// for each frame, calculate the rough score, consisting of pose, scale and angle overlap.
+		System.out.println("findEuclideanOverlapFrames looking through all " + graph.keyframesAll.size());
 		for(int i=0;i<graph.keyframesAll.size();i++)
 		{
 			DenseMatrix otherPos = graph.keyframesAll.get(i).getScaledCamToWorld().getTranslationMat();
@@ -137,21 +141,50 @@ public class TrackableKeyFrameSearch {
 				distFac = distFacReciprocal;
 			DenseMatrix dist = (pos.sub(otherPos)).mul(distFac);
 			float dNorm2 = (float) dist.mmul(dist.t()).get(0, 0);
-			if(dNorm2 > distanceTH)
+			if(dNorm2 > distanceTH) {
+				System.err.println("dNorm2 > distanceTH, " + dNorm2 +">"+ distanceTH);
 				continue;
+			}
 	
 			DenseMatrix otherViewingDir = graph.keyframesAll.get(i).getScaledCamToWorld().getRotationMat().row(1);
 			float dirDotProd = (float) otherViewingDir.mmul(viewingDir.t()).get(0, 0);
-			if(dirDotProd < cosAngleTH)
+			if(dirDotProd < cosAngleTH) {
+				System.err.println("dirDotProd < cosAngleTH, " + dirDotProd +">"+ cosAngleTH);
 				continue;
+			}
 	
 			TrackableKFStruct tkfs = new TrackableKFStruct();
 			tkfs.ref = graph.keyframesAll.get(i);
 			tkfs.refToFrame = (graph.keyframesAll.get(i).getScaledCamToWorld().inverse().mul(frame.getScaledCamToWorld())).inverse().getSE3();
 			tkfs.dist = dNorm2;
 			tkfs.angle = dirDotProd;
+			
+			potentialReferenceFrames.add(tkfs);
 		}
 	
 		return potentialReferenceFrames;
+	}
+	
+
+	public Set<Frame> findCandidates(Frame keyframe, float closenessTH)
+	{
+		Set<Frame> results = new HashSet<Frame>();
+	
+		// Add all candidates that are similar in an euclidean sense.
+		List<TrackableKFStruct> potentialReferenceFrames =
+	            findEuclideanOverlapFrames(keyframe, closenessTH * 15 / (KFDistWeight*KFDistWeight),
+	            		1.0f - 0.25f * closenessTH, true);
+		
+		System.out.println("findEuclideanOverlapFrames - " + potentialReferenceFrames.size());
+		
+	    for(int i=0;i<potentialReferenceFrames.size();i++)
+			results.add(potentialReferenceFrames.get(i).ref);
+	
+		
+//		if (enablePrintDebugInfo && printConstraintSearchInfo)
+//			printf("Early LoopClosure-Candidates for %d: %d euclidean, %d appearance-based, %d total\n",
+//					(int)keyframe->id(), (int)potentialReferenceFrames.size(), appearanceBased, (int)results.size());
+	
+		return results;
 	}
 }

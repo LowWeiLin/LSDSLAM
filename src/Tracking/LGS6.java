@@ -12,6 +12,7 @@ public class LGS6 {
 	int numConstraints;
 	
 	public LGS6() {
+		initialize();
 	}
 	
 	public void initialize() {

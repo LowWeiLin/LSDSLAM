@@ -1375,7 +1375,6 @@ public class DepthMap {
 
 		SE3 oldToNew_SE3 = SE3.inverse(new_keyframe.pose.thisToParent_raw.getSE3());
 
-		// TODO: something wrong here
 		propagateDepth(new_keyframe);
 		
 		activeKeyFrame = new_keyframe;

@@ -8,15 +8,17 @@ import org.opencv.imgproc.Imgproc;
 import Utils.Constants;
 
 
-public class LiveSLAMWrapper {
+public class SLAMWrapper {
 	
 	boolean isInitialized = false;
 	int imageSeqNumber = 0;
 	LSDSLAM lsdSlam = new LSDSLAM();
 	
-	final String imagesDirectory = "images-g_1";
+	final String imagesDirectory = "images";
 	
-	public LiveSLAMWrapper() {
+	// g_2 has lots of specular reflections/highlights.
+	
+	public SLAMWrapper() {
 	}
 	
 	public void loop() {
@@ -73,6 +75,10 @@ public class LiveSLAMWrapper {
 			// Do here, sequentially for now.
 			lsdSlam.doMappingIteration();
 			
+			
+			// TODO: Do constraint search here?
+			lsdSlam.constraintSearchIteration();
+			
 		}
 		
 	}
@@ -87,14 +93,20 @@ public class LiveSLAMWrapper {
 		//Constants.setK(748.000000, 748.000000, 319.000000, 239.000000);
 		
 		// LSDSLAM example
-		//Constants.setK(254.327, 375.934, 266.882, 231.099);
+		Constants.setK(254.327, 375.934, 266.882, 231.099);
 		
+		
+		// GoPro - studio undistort old
+		//Constants.setK(293.44402418, 393.75304703, 319.60465583, 252.00499988);
 		
 		// GoPro - studio undistort
-		Constants.setK(282.3554769, 282.37401685, 316.8959948, 245.18105368);
+		//Constants.setK(291.55136695, 391.96175257, 316.61752775, 246.73475848);
+		
+		// GoPro - undistort twice
+		//Constants.setK(282.3554769, 282.37401685, 316.8959948, 245.18105368);
 		
 		
-		LiveSLAMWrapper liveSlamWrapper = new LiveSLAMWrapper();
+		SLAMWrapper liveSlamWrapper = new SLAMWrapper();
 		liveSlamWrapper.loop();
 		
 	}

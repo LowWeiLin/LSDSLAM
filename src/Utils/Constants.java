@@ -4,6 +4,11 @@ import jeigen.DenseMatrix;
 
 public class Constants {
 	
+	public static float EPSILON = 1e-5f;
+	
+	public static float loopclosureStrictness = 1.5f;
+	public static int maxLoopClosureCandidates = 10;
+	
 	public static final float DIVISION_EPS  = 1e-10f;
 
 	public static final float MAX_VAR = 0.5f * 0.5f; // initial variance on creation - if variance becomes larger than this, hypothesis is removed.
@@ -12,6 +17,10 @@ public class Constants {
 	public static final int PYRAMID_LEVELS = 5;
 	public static final int SE3TRACKING_MAX_LEVEL = 5;
 	public static final int SE3TRACKING_MIN_LEVEL = 1;
+	
+	public static final int SIM3TRACKING_MAX_LEVEL = 5;
+	public static final int SIM3TRACKING_MIN_LEVEL = 1;
+	
 	
 	public static final float MIN_USE_GRAD = 5;//28.93f; // TODO: setting, not constant. //20f;//
 	public static final float MIN_ABS_GRAD_CREATE = MIN_USE_GRAD;
@@ -93,6 +102,7 @@ public class Constants {
 	// is used as assumed inverse depth variance between neighbouring pixel.
 	// basically determines the amount of spacial smoothing (small -> more smoothing).
 	static float depthSmoothingFactor = 1;
+
 	public static final float REG_DIST_VAR = (0.075f*0.075f*depthSmoothingFactor*depthSmoothingFactor);
 
 	// define how strict the merge-processes etc. are.

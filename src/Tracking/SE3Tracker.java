@@ -14,7 +14,7 @@ import Utils.Utils;
 
 
 
-public class Tracker {
+public class SE3Tracker {
 	
 	// Settings variables
 	public static final int maxIterations[] = {5, 20, 50, 100, 100, 100};
@@ -66,7 +66,7 @@ public class Tracker {
 	
 	
 	
-	public Tracker() {
+	public SE3Tracker() {
 		
 		// Set lambdaInitial values to 0
 		Arrays.fill(lambdaInitial, 0);
@@ -258,11 +258,18 @@ public class Tracker {
 		
 
 		trackingWasGood = !diverged
-				&& lastGoodCount / (frame.width(Constants.SE3TRACKING_MIN_LEVEL)*frame.height(Constants.SE3TRACKING_MIN_LEVEL)) > Constants.MIN_GOODPERALL_PIXEL
+				&& lastGoodCount / (frame.width(Constants.SE3TRACKING_MIN_LEVEL)*frame.height(Constants.SE3TRACKING_MIN_LEVEL))
+				> Constants.MIN_GOODPERALL_PIXEL
 				&& lastGoodCount / (lastGoodCount + lastBadCount) > Constants.MIN_GOODPERGOODBAD_PIXEL;
 
 		if(trackingWasGood)
 			referenceFrame.keyframe.numFramesTrackedOnThis++;
+		else {
+			System.out.println("Tracking was bad ??");
+			System.out.println("lastGoodCount " + lastGoodCount);
+			System.out.println("lastBadCount " + lastBadCount);
+			System.out.println("size: " + (frame.width(Constants.SE3TRACKING_MIN_LEVEL)*frame.height(Constants.SE3TRACKING_MIN_LEVEL)));
+		}
 		
 
 		SE3 frameToRef = SE3.inverse(refToFrame);
@@ -490,8 +497,6 @@ public class Tracker {
 	 */
 	public void calculateWarpUpdate(LGS6 ls) {
 		
-		ls.initialize();
-		
 		// For each warped pixel
 		for (int i=0 ; i<warpedCount ; i++) {
 
@@ -589,6 +594,7 @@ public class Tracker {
 				// diverged/lost tracking?
 				diverged = true;
 				trackingWasGood = false;
+				System.out.println("Tracking bad warped count " + warpedCount);
 				return new SE3();
 			}
 			

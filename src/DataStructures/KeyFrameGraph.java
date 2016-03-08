@@ -1,5 +1,7 @@
 package DataStructures;
 
+import g2o.g2o_SparseOptimizer;
+
 import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -8,9 +10,9 @@ import java.util.List;
 import java.util.Map;
 
 import jeigen.DenseMatrix;
-import LieAlgebra.SE3;
 import LieAlgebra.SIM3;
 import Utils.Constants;
+import Utils.PQueue;
 import Utils.PlyWriter;
 
 public class KeyFrameGraph {
@@ -37,10 +39,9 @@ public class KeyFrameGraph {
 	
 
 	// contains ALL edges, as soon as they are created
-	//std::vector< KFConstraintStruct*, Eigen::aligned_allocator<KFConstraintStruct*> > edgesAll;
+	List<KFConstraintStruct> edgesAll = new ArrayList<KFConstraintStruct>();
 
-
-
+	
 	// contains ALL frame poses, chronologically, as soon as they are tracked.
 	// the corresponding frame may have been removed / deleted in the meantime.
 	// these are the ones that are also referenced by the corresponding Frame / Keyframe object
@@ -54,10 +55,10 @@ public class KeyFrameGraph {
 
 
 	/** Pose graph representation in g2o */
-	//g2o::SparseOptimizer graph;
+	g2o_SparseOptimizer graph;
 	
-	//std::vector< Frame*, Eigen::aligned_allocator<Frame*> > newKeyframesBuffer;
-	//std::vector< KFConstraintStruct*, Eigen::aligned_allocator<FramePoseStruct*> > newEdgeBuffer;
+	List<Frame> newKeyframesBuffer = new ArrayList<Frame>();
+	List<KFConstraintStruct> newEdgeBuffer = new ArrayList<KFConstraintStruct>();
 
 	public int nextEdgeId;
 
@@ -69,6 +70,68 @@ public class KeyFrameGraph {
 		FramePoseStruct pose = frame.pose;
 		allFramePoses.add(pose);
 		
+	}
+	
+	public void addKeyFrame(Frame frame) {
+		if(frame.pose.graphVertex != null)
+			return;
+
+		// Insert vertex into g2o graph
+		VertexSim3 vertex = new VertexSim3();
+		vertex.setId(frame.id());
+
+		SIM3 camToWorld_estimate = frame.getScaledCamToWorld();
+
+		if(!frame.hasTrackingParent())
+			vertex.setFixed(true);
+
+		vertex.setEstimate(camToWorld_estimate);
+		vertex.setMarginalized(false);
+
+		frame.pose.graphVertex = vertex;
+
+		newKeyframesBuffer.add(frame);
+
+	}
+	
+
+	public void insertConstraint(KFConstraintStruct constraint)
+	{
+		EdgeSim3 edge = new EdgeSim3();
+		edge.setId(nextEdgeId);
+		++ nextEdgeId;
+	
+		totalEdges++;
+	
+		edge.setMeasurement(constraint.secondToFirst);
+		edge.setInformation(constraint.information);
+		edge.setRobustKernel(constraint.robustKernel);
+	
+		edge.resize(2);
+		assert(constraint.firstFrame.pose.graphVertex != null);
+		edge.setVertex(0, constraint.firstFrame.pose.graphVertex);
+		assert(constraint.secondFrame.pose.graphVertex != null);
+		edge.setVertex(1, constraint.secondFrame.pose.graphVertex);
+	
+		constraint.edge = edge;
+		newEdgeBuffer.add(constraint);
+	
+	
+		constraint.firstFrame.neighbors.add(constraint.secondFrame);
+		constraint.secondFrame.neighbors.add(constraint.firstFrame);
+	
+		/*
+		for(int i=0;i<totalVertices;i++)
+		{
+			//shortestDistancesMap
+		}*/
+	
+	
+	
+		//edgesListsMutex.lock();
+		constraint.idxInAllEdges = edgesAll.size();
+		edgesAll.add(constraint);
+		//edgesListsMutex.unlock();
 	}
 	
 	public void writePointCloudToFile(String filename
@@ -191,4 +254,45 @@ public class KeyFrameGraph {
 		PlyWriter.writePoints(filename, allPoints);
 	}
 	
+	
+	public void calculateGraphDistancesToFrame(Frame startFrame, Map<Frame, Integer> distanceMap)
+	{
+		distanceMap.put(startFrame, 0);
+		
+		
+		PQueue<Frame> priorityQueue = new PQueue<Frame>();
+		priorityQueue.add(0, startFrame);
+		
+		
+		while (! priorityQueue.isEmpty())
+		{
+			
+			int length = priorityQueue.peekPriority();
+			Frame frame = priorityQueue.get();
+			
+			Integer mapEntry = distanceMap.get(frame);
+			
+			if (mapEntry != null && length > mapEntry)
+			{
+				continue;
+			}
+			
+			for (Frame neighbor : frame.neighbors)
+			{
+				Integer neighborMapEntry = distanceMap.get(neighbor);
+				
+				if (neighborMapEntry != null && length + 1 >= neighborMapEntry) {
+					continue;
+				}
+				if (neighborMapEntry != null) {
+					neighborMapEntry = length + 1;
+				} else {
+					distanceMap.put(neighbor, length + 1);
+				}
+				priorityQueue.add(length + 1, neighbor);
+			}
+			
+		}
+		
+	}
 }

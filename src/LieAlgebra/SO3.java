@@ -221,6 +221,10 @@ public class SO3 {
 		assertNotNaN();
 	}
 	
+	public SO3 mul(SO3 so3) {
+		return new SO3(this.matrix.mmul(so3.matrix));
+	}
+	
 	/// Modifies the matrix to make sure it is a valid rotation matrix.
 	public void coerce() {
 		

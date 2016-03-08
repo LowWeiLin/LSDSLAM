@@ -1,8 +1,16 @@
+import g2o.g2o_RobustKernelHuber;
+
 import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import jeigen.DenseMatrix;
 
@@ -10,22 +18,27 @@ import org.opencv.core.Mat;
 
 import DataStructures.Frame;
 import DataStructures.FramePoseStruct;
+import DataStructures.KFConstraintStruct;
 import DataStructures.KeyFrameGraph;
 import DataStructures.TrackingReference;
 import DepthEstimation.DepthMap;
 import GlobalMapping.TrackableKeyFrameSearch;
 import LieAlgebra.SE3;
+import LieAlgebra.SIM3;
+import LieAlgebra.SO3;
 import LieAlgebra.Vec;
-import Tracking.Tracker;
+import Tracking.SE3Tracker;
+import Tracking.SIM3Tracker;
 import Utils.Constants;
 
+import java.util.Random;
 
 public class LSDSLAM {
 	
 	
 	Frame currentKeyFrame;
 	DepthMap map;
-	Tracker tracker;
+	SE3Tracker tracker;
 	
 	boolean createNewKeyFrame = false;
 	boolean trackingIsGood = true;
@@ -38,7 +51,14 @@ public class LSDSLAM {
 	
 	Frame latestTrackedFrame;
 	float lastTrackingClosenessScore;
+	
+	
+	// Find Constraint 
 	TrackableKeyFrameSearch trackableKeyFrameSearch = null;
+	SIM3Tracker constraintTracker;
+	SE3Tracker constraintSE3Tracker;
+	TrackingReference newKFTrackingReference;
+	TrackingReference candidateTrackingReference;
 
 	// PUSHED in tracking, READ & CLEARED in mapping
 	Deque<Frame> unmappedTrackedFrames = new LinkedList<Frame>();
@@ -48,22 +68,39 @@ public class LSDSLAM {
 	
 	int nextRelocIdx = -1;
 	
+	// optimization thread
+	boolean newConstraintAdded;
+	
 	public LSDSLAM() {
 
 		trackingReference = new TrackingReference();
 		mappingTrackingReference = new TrackingReference();
 		keyFrameGraph = new KeyFrameGraph();
 		
+		
+		
+		
 	}
 	
 	public void randomInit(Mat image, int id) {
 		
 		if (trackableKeyFrameSearch == null) {
-			trackableKeyFrameSearch = new TrackableKeyFrameSearch(keyFrameGraph, image.width(), image.height());
+			
+			int w = image.width();
+			int h = image.height();
+			
+			trackableKeyFrameSearch = new TrackableKeyFrameSearch(keyFrameGraph, w, h);
+		
+			trackableKeyFrameSearch = new TrackableKeyFrameSearch(keyFrameGraph, w, h);
+			constraintTracker = new SIM3Tracker();
+			constraintSE3Tracker = new SE3Tracker();
+			newKFTrackingReference = new TrackingReference();
+			candidateTrackingReference = new TrackingReference();
+		
 		}
 		
 		map = new DepthMap(image.width(), image.height());
-		tracker = new Tracker();
+		tracker = new SE3Tracker();
 		
 		// New currentKeyframe
 		currentKeyFrame = new Frame(image);
@@ -125,6 +162,24 @@ public class LSDSLAM {
 		} else {
 			frameToReference_initialEstimate = new SE3();
 		}
+		
+		System.out.println("frameToReference_initialEstimate: " + Arrays.toString(SE3.ln(frameToReference_initialEstimate)));
+		System.out.println("trackingReferencePose.getCamToWorld().inverse().getSE3()" + 
+				Arrays.toString(SE3.ln(trackingReferencePose.getCamToWorld().inverse().getSE3())));
+		
+		System.out.println("trackingReferencePose.getCamToWorld().inverse()" + 
+				trackingReferencePose.getCamToWorld().inverse().getScale());
+		System.out.println("keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)"
+				+ ".getCamToWorld()" + 
+						keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)
+												   .getCamToWorld().getScale());
+		
+		System.out.println("keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1).getCamToWorld().getSE3()" + 
+				Arrays.toString(SE3.ln(
+						keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)
+												   .getCamToWorld().getSE3())));
+		
+		
 		SE3 newRefToFrame_poseUpdate = tracker.trackFrame(
 				trackingReference,
 				trackingNewFrame,
@@ -334,6 +389,7 @@ public class LSDSLAM {
 				keyFrameGraph.totalVertices++;
 	
 				newKeyFrames.add(currentKeyFrame);
+				
 			}
 		}
 		
@@ -418,5 +474,640 @@ public class LSDSLAM {
 		*/
 
 		currentKeyFrame = newKeyframeCandidate;
+	}
+	
+	void constraintSearchIteration()
+	{
+		System.out.println("Started constraint search!");
+
+		// Have newKeyFrames
+		if (newKeyFrames.size() > 0) {
+			Frame newKF = newKeyFrames.pop();
+			
+			findConstraintsForNewKeyFrames(newKF, true, 1.0f);
+			
+		}
+		
+		
+		
+		
+		// doFullReConstraintTrack
+		/*
+		int failedToRetrack = 0;
+		
+		int added = 0;
+		for(int i=0;i<keyFrameGraph.keyframesAll.size();i++)
+		{
+			if(keyFrameGraph.keyframesAll.get(i).pose.isInGraph)
+				added += findConstraintsForNewKeyFrames(keyFrameGraph.keyframesAll.get(i), false, 1.0f);
+		}
+
+		System.out.printf("Done optizing Full Map! Added %d constraints.\n", added);
+		*/
+	}
+	
+	int findConstraintsForNewKeyFrames(Frame newKeyFrame, boolean forceParent, float closeCandidatesTH)
+	{
+		System.out.println("findConstraintsForNewKeyFrames");
+		if(!newKeyFrame.hasTrackingParent())
+		{
+			keyFrameGraph.addFrame(newKeyFrame);
+			newConstraintAdded = true;
+			System.out.println("findConstraintsForNewKeyFrames - ret 0");
+			return 0;
+		}
+
+		
+		if(!forceParent && 
+				Vec.magnitude((newKeyFrame.lastConstraintTrackedCamToWorld.mul(
+						newKeyFrame.getScaledCamToWorld().inverse())).ln()) < 0.01) {
+			System.out.println("findConstraintsForNewKeyFrames - 515");
+			return 0;
+		}
+
+
+		newKeyFrame.lastConstraintTrackedCamToWorld = newKeyFrame.getScaledCamToWorld();
+
+		
+		System.out.println("findConstraintsForNewKeyFrames - get all potential candidates and their initial relative pose.");
+		// =============== get all potential candidates and their initial relative pose. =================
+		List<KFConstraintStruct> constraints = new ArrayList<KFConstraintStruct>();
+		//Frame fabMapResult = null;
+		Set<Frame> candidates = trackableKeyFrameSearch.findCandidates(newKeyFrame, closeCandidatesTH);
+		Map<Frame, SIM3> candidateToFrame_initialEstimateMap = new HashMap<Frame, SIM3>();
+		
+		System.out.println("trackableKeyFrameSearch.findCandidates - " + candidates.size());
+
+		// erase the ones that are already neighbours.
+		for(Frame c : candidates)
+		{
+			if(newKeyFrame.neighbors.contains(c) == true)
+			{
+				System.out.printf("SKIPPING %d on %d cause it already exists as constraint.\n", c.id(), newKeyFrame.id());
+				candidates.remove(c);
+			}
+		}
+
+		for (Frame candidate : candidates)
+		{
+			SIM3 candidateToFrame_initialEstimate = newKeyFrame.getScaledCamToWorld().inverse().mul( 
+					candidate.getScaledCamToWorld());
+			candidateToFrame_initialEstimateMap.put(candidate, candidateToFrame_initialEstimate);
+			System.out.println("candidateToFrame_initialEstimateMap " + candidateToFrame_initialEstimateMap.size());
+		}
+
+		Map<Frame, Integer> distancesToNewKeyFrame = new HashMap<Frame, Integer>();
+		if(newKeyFrame.hasTrackingParent())
+			keyFrameGraph.calculateGraphDistancesToFrame(
+					newKeyFrame.getTrackingParent(), distancesToNewKeyFrame);
+
+
+		System.out.println("findConstraintsForNewKeyFrames - distinguish between close and far candidates in Graph");
+		// =============== distinguish between close and "far" candidates in Graph =================
+		// Do a first check on trackability of close candidates.
+		Set<Frame> closeCandidates = new HashSet<Frame>();
+		List<Frame> farCandidates = new ArrayList<Frame>();
+		Frame parent = newKeyFrame.hasTrackingParent() ? newKeyFrame.getTrackingParent() : null;
+
+		int closeFailed = 0;
+		int closeInconsistent = 0;
+
+		SO3 disturbance = new SO3();
+		disturbance.set31(new double[]{0.05,0,0});
+
+		for (Frame candidate : candidates)
+		{
+			if (candidate.id() == newKeyFrame.id())
+				continue;
+			if(!candidate.pose.isInGraph)
+				continue;
+			if(newKeyFrame.hasTrackingParent() && candidate == newKeyFrame.getTrackingParent())
+				continue;
+			if(candidate.idxInKeyframes < Constants.INITIALIZATION_PHASE_COUNT)
+				continue;
+			
+			SE3 c2f_init = candidateToFrame_initialEstimateMap.get(candidate).inverse().getSE3().inverse();
+			c2f_init.rotation.mulEq(disturbance);
+			
+			// TRACK SE3
+			SE3 c2f = constraintSE3Tracker.trackFrameOnPermaref(candidate, newKeyFrame, c2f_init);
+			if(!constraintSE3Tracker.trackingWasGood) {
+				closeFailed++;
+				continue;
+			}
+
+
+			SE3 f2c_init = candidateToFrame_initialEstimateMap.get(candidate).getSE3().inverse();
+			disturbance.mulEq(f2c_init.rotation);
+			f2c_init.rotation = disturbance;
+			
+			SE3 f2c = constraintSE3Tracker.trackFrameOnPermaref(newKeyFrame, candidate, f2c_init);
+			if(!constraintSE3Tracker.trackingWasGood) {
+				closeFailed++;
+				continue;
+			}
+
+			if(Vec.magnitude(f2c.rotation.mul(c2f.rotation).ln()) >= 0.09) {
+				closeInconsistent++;
+				continue;
+			}
+
+			closeCandidates.add(candidate);
+			
+		}
+
+
+	
+		int farFailed = 0;
+		int farInconsistent = 0;
+		for (Frame candidate : candidates)
+		{
+			if (candidate.id() == newKeyFrame.id())
+				continue;
+			if(!candidate.pose.isInGraph)
+				continue;
+			if(newKeyFrame.hasTrackingParent() && candidate == newKeyFrame.getTrackingParent())
+				continue;
+			if(candidate.idxInKeyframes < Constants.INITIALIZATION_PHASE_COUNT)
+				continue;
+
+			if(distancesToNewKeyFrame.get(candidate) < 4)
+				continue;
+
+			farCandidates.add(candidate);
+		}
+
+
+
+		int closeAll = closeCandidates.size();
+		int farAll = farCandidates.size();
+		
+		// TODO: implement
+/*
+		// erase the ones that we tried already before (close)
+		for(Frame c : closeCandidates)
+		{
+			if(newKeyFrame.trackingFailed.contains(c) == false)
+			{
+				continue;
+			}
+			auto range = newKeyFrame.trackingFailed.equal_range(c);
+
+			boolean skip = false;
+			SIM3 f2c = candidateToFrame_initialEstimateMap.get(c).inverse();
+			for (auto it = range.first; it != range.second; ++it)
+			{
+				if((f2c * it->second).log().norm() < 0.1)
+				{
+					skip=true;
+					break;
+				}
+			}
+
+			if(skip)
+			{
+				//if(enablePrintDebugInfo && printConstraintSearchInfo)
+				//	printf("SKIPPING %d on %d (NEAR), cause we already have tried it.\n", (*c)->id(), newKeyFrame->id());
+				//c = closeCandidates.erase(c);
+				erase c
+			}
+			else {
+				//++c;
+			}
+		}
+*/
+
+		// erase the ones that are already neighbours (far)
+		// TODO: implement
+		/*
+		for(int i=0;i<farCandidates.size();i++)
+		{
+			if(newKeyFrame.trackingFailed.contains(farCandidates.get(i)) == false)
+				continue;
+
+			auto range = newKeyFrame.trackingFailed.equal_range(farCandidates.get(i));
+
+			boolean skip = false;
+			for (auto it = range.first; it != range.second; ++it)
+			{
+				if((it->second).log().norm() < 0.2)
+				{
+					skip=true;
+					break;
+				}
+			}
+
+			if(skip)
+			{
+//				if(enablePrintDebugInfo && printConstraintSearchInfo)
+//					printf("SKIPPING %d on %d (FAR), cause we already have tried it.\n", farCandidates[i]->id(), newKeyFrame->id());
+				farCandidates[i] = farCandidates.back();
+				farCandidates.pop_back();
+				i--;
+			}
+		}*/
+
+
+
+//		if (enablePrintDebugInfo && printConstraintSearchInfo)
+//			printf("Final Loop-Closure Candidates: %d / %d close (%d failed, %d inconsistent) + %d / %d far (%d failed, %d inconsistent) = %d\n",
+//					(int)closeCandidates.size(),closeAll, closeFailed, closeInconsistent,
+//					(int)farCandidates.size(), farAll, farFailed, farInconsistent,
+//					(int)closeCandidates.size() + (int)farCandidates.size());
+
+
+
+		// =============== limit number of close candidates ===============
+		// while too many, remove the one with the highest connectivity.
+		while((int)closeCandidates.size() > Constants.maxLoopClosureCandidates)
+		{
+			Frame worst = null;
+			int worstNeighbours = 0;
+			for(Frame f : closeCandidates)
+			{
+				int neightboursInCandidates = 0;
+				for(Frame n : f.neighbors)
+					if(closeCandidates.contains(n))
+						neightboursInCandidates++;
+
+				if(neightboursInCandidates > worstNeighbours || worst == null)
+				{
+					worst = f;
+					worstNeighbours = neightboursInCandidates;
+				}
+			}
+
+			closeCandidates.remove(worst);
+		}
+
+
+		// TODO: implement
+		/*
+		// =============== limit number of far candidates ===============
+		// delete randomly
+		int maxNumFarCandidates = (Constants.maxLoopClosureCandidates +1) / 2;
+		if(maxNumFarCandidates < 5) maxNumFarCandidates = 5;
+		while((int)farCandidates.size() > maxNumFarCandidates)
+		{
+			int toDelete = rand() % farCandidates.size();
+			if(farCandidates[toDelete] != fabMapResult)
+			{
+				farCandidates[toDelete] = farCandidates.back();
+				farCandidates.pop_back();
+			}
+		}
+		 */
+
+
+		// =============== TRACK! ===============
+		System.out.println("findConstraintsForNewKeyFrames - Track!");
+		
+		// make tracking reference for newKeyFrame.
+		newKFTrackingReference.importFrame(newKeyFrame);
+
+		// For all close candidates of newKeyFrame
+		for (Frame candidate : closeCandidates)
+		{
+			KFConstraintStruct e1 = null;
+			KFConstraintStruct e2 = null;
+
+			KFConstraintStruct[] result = testConstraint(
+					candidate, e1, e2,
+					candidateToFrame_initialEstimateMap.get(candidate),
+					Constants.loopclosureStrictness);
+			e1 = result[0];
+			e2 = result[1];
+			
+			
+			//if(enablePrintDebugInfo && printConstraintSearchInfo)
+			//	printf(" CLOSE (%d)\n", distancesToNewKeyFrame.at(candidate));
+
+			if(e1 != null)
+			{
+				constraints.add(e1);
+				constraints.add(e2);
+
+				// delete from far candidates if it's in there.
+				for(int k=0 ; k<farCandidates.size();k++)
+				{
+					if(farCandidates.get(k) == candidate)
+					{
+						//if(enablePrintDebugInfo && printConstraintSearchInfo)
+						//	printf(" DELETED %d from far, as close was successful!\n", candidate->id());
+
+						//farCandidates[k] = farCandidates.back();
+						//farCandidates.pop_back();
+						
+						// TODO: Replace with last, remove last
+						
+					}
+				}
+			}
+		}
+
+		// Far candidates, (for loop closure?)
+		for (Frame candidate : farCandidates)
+		{
+			KFConstraintStruct e1 = null;
+			KFConstraintStruct e2 = null;
+
+			KFConstraintStruct[] result = testConstraint(
+					candidate, e1, e2,
+					new SIM3(),
+					Constants.loopclosureStrictness);
+			e1 = result[0];
+			e2 = result[1];
+			
+//			if(enablePrintDebugInfo && printConstraintSearchInfo)
+//				printf(" FAR (%d)\n", distancesToNewKeyFrame.at(candidate));
+
+			if(e1 != null)
+			{
+				constraints.add(e1);
+				constraints.add(e2);
+			}
+		}
+
+
+
+		if(parent != null && forceParent)
+		{
+			if (candidateToFrame_initialEstimateMap.get(parent) == null) {
+				System.out.println("candidateToFrame_initialEstimateMap.get(parent) == null");
+				System.out.println("Frame " + newKeyFrame.id());
+				System.out.println("Frame parent " + parent.id());
+			}
+			
+			KFConstraintStruct e1 = null;
+			KFConstraintStruct e2 = null;
+			KFConstraintStruct[] result = testConstraint(
+					parent, e1, e2,
+					candidateToFrame_initialEstimateMap.get(parent),
+					100);
+			e1 = result[0];
+			e2 = result[1];
+			
+//			if(enablePrintDebugInfo && printConstraintSearchInfo)
+//				printf(" PARENT (0)\n");
+
+			if(e1 != null)
+			{
+				constraints.add(e1);
+				constraints.add(e2);
+			}
+			else
+			{
+				float downweightFac = 5;
+				float kernelDelta = (float) (5f * Math.sqrt(6000f*Constants.loopclosureStrictness) / downweightFac);
+				System.out.printf("warning: reciprocal tracking on new frame failed badly, added odometry edge (Hacky).\n");
+
+				//poseConsistencyMutex.lock_shared();
+				
+				KFConstraintStruct k = new KFConstraintStruct();
+				k.firstFrame = newKeyFrame;
+				k.secondFrame = newKeyFrame.getTrackingParent();
+				k.secondToFirst = k.firstFrame.getScaledCamToWorld().inverse().mul(
+								  k.secondFrame.getScaledCamToWorld());
+				k.information = new DenseMatrix(new double[][] {
+						{0.8098,-0.1507,-0.0557, 0.1211, 0.7657, 0.0120, 0},
+						{-0.1507, 2.1724,-0.1103,-1.9279,-0.1182, 0.1943, 0},
+						{-0.0557,-0.1103, 0.2643,-0.0021,-0.0657,-0.0028, 0.0304},
+						{ 0.1211,-1.9279,-0.0021, 2.3110, 0.1039,-0.0934, 0.0005},
+						{ 0.7657,-0.1182,-0.0657, 0.1039, 1.0545, 0.0743,-0.0028},
+						{ 0.0120, 0.1943,-0.0028,-0.0934, 0.0743, 0.4511, 0},
+						{ 0,0, 0.0304, 0.0005,-0.0028, 0, 0.0228}});
+				k.information = k.information.mul((1e9/(downweightFac*downweightFac)));
+
+				k.robustKernel = new g2o_RobustKernelHuber();
+				k.robustKernel.setDelta(kernelDelta);
+
+				k.meanResidual = 10;
+				k.meanResidualD = 10;
+				k.meanResidualP = 10;
+				k.usage = 0;
+				
+				constraints.add(k);
+
+				//poseConsistencyMutex.unlock_shared();
+			}
+		}
+
+
+		//newConstraintMutex.lock();
+
+		keyFrameGraph.addKeyFrame(newKeyFrame);
+		for(int i=0 ; i<constraints.size() ; i++)
+			keyFrameGraph.insertConstraint(constraints.get(i));
+
+
+		newConstraintAdded = true;
+		//newConstraintCreatedSignal.notify_all();
+		//newConstraintMutex.unlock();
+
+		newKFTrackingReference.invalidate();
+		candidateTrackingReference.invalidate();
+
+
+
+		return constraints.size();
+	}
+	
+	public KFConstraintStruct[] testConstraint(
+			Frame candidate,
+			KFConstraintStruct e1_out, KFConstraintStruct e2_out,
+			SIM3 candidateToFrame_initialEstimate,
+			float strictness)
+	{
+		candidateTrackingReference.importFrame(candidate);
+
+		SIM3 FtoC = candidateToFrame_initialEstimate.inverse();
+		SIM3 CtoF = candidateToFrame_initialEstimate;
+		DenseMatrix FtoCInfo, CtoFInfo; // 7x7
+
+		float err_level3 = tryTrackSim3(
+				newKFTrackingReference, candidateTrackingReference,	// A = frame; b = candidate
+				Constants.SIM3TRACKING_MAX_LEVEL-1, 3,
+				FtoC, CtoF);
+
+		if(err_level3 > 3000*strictness)
+		{
+//			if(enablePrintDebugInfo && printConstraintSearchInfo)
+//				printf("FAILE %d -> %d (lvl %d): errs (%.1f / - / -).",
+//					newKFTrackingReference->frameID, candidateTrackingReference->frameID,
+//					3,
+//					sqrtf(err_level3));
+
+			e1_out = e2_out = null;
+
+			newKFTrackingReference.keyframe.trackingFailed.putElement(
+					candidate, candidateToFrame_initialEstimate);
+					
+			return new KFConstraintStruct[] {e1_out, e2_out};
+		}
+
+		float err_level2 = tryTrackSim3(
+				newKFTrackingReference, candidateTrackingReference,	// A = frame; b = candidate
+				2, 2,
+				FtoC, CtoF);
+
+		if(err_level2 > 4000*strictness)
+		{
+//			if(enablePrintDebugInfo && printConstraintSearchInfo)
+//				printf("FAILE %d -> %d (lvl %d): errs (%.1f / %.1f / -).",
+//					newKFTrackingReference->frameID, candidateTrackingReference->frameID,
+//					2,
+//					sqrtf(err_level3), sqrtf(err_level2));
+
+			e1_out = e2_out = null;
+			newKFTrackingReference.keyframe.trackingFailed.putElement(
+					candidate, candidateToFrame_initialEstimate);
+			return new KFConstraintStruct[] {e1_out, e2_out};
+		}
+
+		e1_out = new KFConstraintStruct();
+		e2_out = new KFConstraintStruct();
+
+
+		float err_level1 = tryTrackSim3(
+				newKFTrackingReference, candidateTrackingReference,	// A = frame; b = candidate
+				1, 1,
+				FtoC, CtoF, e1_out, e2_out);
+
+		if(err_level1 > 6000*strictness)
+		{
+//			if(enablePrintDebugInfo && printConstraintSearchInfo)
+//				printf("FAILE %d -> %d (lvl %d): errs (%.1f / %.1f / %.1f).",
+//						newKFTrackingReference->frameID, candidateTrackingReference->frameID,
+//						1,
+//						sqrtf(err_level3), sqrtf(err_level2), sqrtf(err_level1));
+
+//			delete e1_out;
+//			delete e2_out;
+			e1_out = e2_out = null;
+			newKFTrackingReference.keyframe.trackingFailed.putElement(
+					candidate, candidateToFrame_initialEstimate);
+			return new KFConstraintStruct[] {e1_out, e2_out};
+		}
+
+
+//		if(enablePrintDebugInfo && printConstraintSearchInfo)
+//			printf("ADDED %d -> %d: errs (%.1f / %.1f / %.1f).",
+//				newKFTrackingReference->frameID, candidateTrackingReference->frameID,
+//				sqrtf(err_level3), sqrtf(err_level2), sqrtf(err_level1));
+
+
+		float kernelDelta = (float) (5f * Math.sqrt(6000f*Constants.loopclosureStrictness));
+		e1_out.robustKernel = new g2o_RobustKernelHuber();
+		e1_out.robustKernel.setDelta(kernelDelta);
+		e2_out.robustKernel = new g2o_RobustKernelHuber();
+		e2_out.robustKernel.setDelta(kernelDelta);
+		
+		return new KFConstraintStruct[] {e1_out, e2_out};
+	}
+	
+	
+
+	float tryTrackSim3(
+			TrackingReference A, TrackingReference B,
+			int lvlStart, int lvlEnd,
+			SIM3 AtoB, SIM3 BtoA) {
+		return tryTrackSim3(
+				A, B,
+				lvlStart, lvlEnd,
+				AtoB, BtoA,
+				null, null);
+	}
+	float tryTrackSim3(
+			TrackingReference A, TrackingReference B,
+			int lvlStart, int lvlEnd,
+			SIM3 AtoB, SIM3 BtoA,
+			KFConstraintStruct e1, KFConstraintStruct e2 )
+	{
+		assert(A != null);
+		assert(B != null);
+		assert(constraintTracker != null);
+		BtoA = constraintTracker.trackFrameSim3(
+				A,
+				B.keyframe,
+				BtoA,
+				lvlStart,lvlEnd);
+		DenseMatrix BtoAInfo = constraintTracker.lastSim3Hessian;//7x7
+		float BtoA_meanResidual = constraintTracker.lastResidual;
+		float BtoA_meanDResidual = constraintTracker.lastDepthResidual;
+		float BtoA_meanPResidual = constraintTracker.lastPhotometricResidual;
+		float BtoA_usage = constraintTracker.pointUsage;
+
+
+		if (constraintTracker.diverged ||
+			BtoA.getScale() > 1 / Constants.EPSILON ||
+			BtoA.getScale() < Constants.EPSILON ||
+			BtoAInfo.get(0,0) == 0 ||
+			BtoAInfo.get(6,6) == 0)
+		{
+			return (float) 1e20;
+		}
+
+
+		AtoB = constraintTracker.trackFrameSim3(
+				B,
+				A.keyframe,
+				AtoB,
+				lvlStart,lvlEnd);
+		DenseMatrix AtoBInfo = constraintTracker.lastSim3Hessian; //7x7
+		float AtoB_meanResidual = constraintTracker.lastResidual;
+		float AtoB_meanDResidual = constraintTracker.lastDepthResidual;
+		float AtoB_meanPResidual = constraintTracker.lastPhotometricResidual;
+		float AtoB_usage = constraintTracker.pointUsage;
+
+
+		if (constraintTracker.diverged ||
+			AtoB.getScale() > 1 / Constants.EPSILON ||
+			AtoB.getScale() < Constants.EPSILON ||
+			AtoBInfo.get(0,0) == 0 ||
+			AtoBInfo.get(6,6) == 0)
+		{
+			return (float) 1e20;
+		}
+
+		// Propagate uncertainty (with d(a * b) / d(b) = Adj_a) and calculate Mahalanobis norm
+		
+		// 7x7
+		DenseMatrix datimesb_db = AtoB.adjoint();
+		DenseMatrix diffHesse = (AtoBInfo.fullPivHouseholderQRSolve(DenseMatrix.eye(7)).add(
+				datimesb_db.mul(
+						BtoAInfo.fullPivHouseholderQRSolve(DenseMatrix.eye(7))).mul(
+						datimesb_db.t())))
+				.fullPivHouseholderQRSolve(DenseMatrix.eye(7));
+		// 7x1
+		DenseMatrix diff = Vec.array7ToVec((AtoB.mul(BtoA)).ln());
+
+
+		float reciprocalConsistency = (float) (diffHesse.mul(diff)).mul(diff.t()).get(0, 0); // dot product
+
+
+		if(e1 != null && e2 != null)
+		{
+			e1.firstFrame = A.keyframe;
+			e1.secondFrame = B.keyframe;
+			e1.secondToFirst = BtoA;
+			e1.information = BtoAInfo;
+			e1.meanResidual = BtoA_meanResidual;
+			e1.meanResidualD = BtoA_meanDResidual;
+			e1.meanResidualP = BtoA_meanPResidual;
+			e1.usage = BtoA_usage;
+
+			e2.firstFrame = B.keyframe;
+			e2.secondFrame = A.keyframe;
+			e2.secondToFirst = AtoB;
+			e2.information = AtoBInfo;
+			e2.meanResidual = AtoB_meanResidual;
+			e2.meanResidualD = AtoB_meanDResidual;
+			e2.meanResidualP = AtoB_meanPResidual;
+			e2.usage = AtoB_usage;
+
+			e1.reciprocalConsistency = e2.reciprocalConsistency = reciprocalConsistency;
+		}
+
+		return reciprocalConsistency;
 	}
 }

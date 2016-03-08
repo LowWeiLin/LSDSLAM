@@ -21,10 +21,10 @@ public class FramePoseStruct {
 	boolean isOptimized;
 
 	// true as soon as the vertex is added to the g2o graph.
-	boolean isInGraph;
+	public boolean isInGraph;
 
 	// graphVertex (if the frame has one, i.e. is a KF and has been added to the graph, otherwise 0).
-	//TODO: VertexSim3 graphVertex;
+	public VertexSim3 graphVertex;
 	
 	int cacheValidFor;
 	static int cacheValidCounter;

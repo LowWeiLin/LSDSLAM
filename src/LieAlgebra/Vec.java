@@ -2,6 +2,8 @@ package LieAlgebra;
 
 import java.text.DecimalFormat;
 
+import jeigen.DenseMatrix;
+
 public class Vec {
 
 	
@@ -136,6 +138,15 @@ public class Vec {
 	public static void unit(double[] vec) {
 		scalarMult(vec, 1./magnitude(vec));
 	}
+	
+	/**
+	 * Make unit vector
+	 */
+	public static DenseMatrix unit7(DenseMatrix vec7) {
+		double[] unit = vec7ToArray(vec7);
+		unit(unit);
+		return array7ToVec(unit);
+	}
 
 	/**
 	 * 3x3 Matrix to array
@@ -168,10 +179,30 @@ public class Vec {
 	}
 	
 	/**
+	 * 7x1 vector to array
+	 */
+	public static double[] vec7ToArray(jeigen.DenseMatrix vec) {
+		return new double[] {vec.get(0,0),
+							vec.get(1,0),
+							vec.get(2,0),
+							vec.get(3,0),
+							vec.get(4,0),
+							vec.get(5,0),
+							vec.get(6,0)};
+	}
+	
+	/**
 	 * 3x1 vector to DenseMatrix
 	 */
 	public static jeigen.DenseMatrix array3ToVec(double[] vec3) {
 		return new jeigen.DenseMatrix(new double[][]{{vec3[0]},{vec3[1]},{vec3[2]}});
+	}
+	
+	/**
+	 * 7x1 vector to DenseMatrix
+	 */
+	public static jeigen.DenseMatrix array7ToVec(double[] vec7) {
+		return new jeigen.DenseMatrix(new double[][]{{vec7[0]},{vec7[1]},{vec7[2]},{vec7[3]},{vec7[4]},{vec7[5]},{vec7[6]}});
 	}
 	
 	public static String printVec(double[] vec) {
