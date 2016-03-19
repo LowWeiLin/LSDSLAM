@@ -19,7 +19,6 @@ public class LGS4
 	{
 		A = jeigen.Shortcuts.zeros(4, 4);
 		b = jeigen.Shortcuts.zeros(4, 1);
-		//memset(SSEData,0, sizeof(float)*4*15);
 		error = 0;
 		this.num_constraints = 0;
 	}

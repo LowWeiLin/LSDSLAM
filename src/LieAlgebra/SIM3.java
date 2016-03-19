@@ -27,7 +27,7 @@ public class SIM3 {
 	 */
 	public SIM3() {
 		se3 = new SE3();
-		scale = 1.0;
+		scale = 1;
 		assertNotNaN();
 	}
 	
@@ -81,6 +81,8 @@ public class SIM3 {
 		newSim3.se3.rotation.mulEq(sim3.getRotation());
 		newSim3.scale *= sim3.getScale();
 		
+		System.out.println(newSim3.scale + " * "+ sim3.getScale());
+		
 		newSim3.assertNotNaN();
 		
 		return newSim3;
@@ -106,17 +108,15 @@ public class SIM3 {
 		return SIM3.ln(this);
 	}
 	
-	static double[] ln(SIM3 sim3) {
+	public static double[] ln(SIM3 sim3) {
 		
 		double[] result = new double[7];
 	    
 	    // rotation
 		double[] rotResult = sim3.getRotation().ln();
 	    double theta = Vec.magnitude(rotResult);
-	    //result.template slice<3,3>() = 
 
 	    // scale 
-	    //double es = sim3.getScale();
 	    double s = Math.log(sim3.getScale());
 	    result[6] = s;
 
@@ -125,9 +125,8 @@ public class SIM3 {
 	    DenseMatrix cross = cross_product_matrix(rotResult);
 	    DenseMatrix W = (DenseMatrix.eye(3).mul(coeff[0])).add(
 	    				(cross.mul(coeff[1]))).add(
-	    				(cross.mul(cross).mul(coeff[2])));
+	    				(cross.mmul(cross).mul(coeff[2])));
 	    
-	    //double[] transResult = gaussian_elimination(W, sim3.getTranslationMat());
 	    DenseMatrix transResultMat = W.fullPivHouseholderQRSolve(sim3.getTranslationMat());
 	    
 	    result[0] = transResultMat.get(0, 0);
@@ -147,9 +146,33 @@ public class SIM3 {
 	 * @return
 	 */
 	public static SIM3 exp(double[] vec7) {
-		double[] vec6 = new double[] {vec7[0],vec7[1],vec7[2],vec7[3],vec7[4],vec7[5]};
-		SE3 se3 = SE3.exp(vec6);
-		SIM3 result = new SIM3(se3, vec7[6]);
+		
+		double[] transVec = new double[]{vec7[0],vec7[1],vec7[2]};
+		double[] rotVec = new double[]{vec7[3],vec7[4],vec7[5]};
+		
+		// Scale
+		double scale = Math.exp(vec7[6]);
+		
+		// Rotation
+		SO3 rotation = new SO3(SO3.exp(rotVec));
+		double t = Vec.magnitude(rotVec);
+
+		// Translation
+		double[] coeff = compute_rodrigues_coefficients_sim3(vec7[6], t); 
+		double[] cross = Vec.cross(rotVec, transVec);
+		
+		// vec3
+		double[] trans = Vec.vecAdd2(Vec.vecAdd2(Vec.scalarMult2(transVec, coeff[0]),
+										   			   Vec.scalarMult2(cross, coeff[1])),
+										   Vec.scalarMult2(Vec.cross(rotVec, cross), coeff[2]));
+		
+		SE3 se3 = new SE3();
+		se3.setTranslation(trans);
+		se3.rotation = rotation;
+		
+		SIM3 result = new SIM3(se3, scale);
+		
+		result.assertNotNaN();
 		return result;
 	}
 	
@@ -202,7 +225,7 @@ public class SIM3 {
 	    return coeff;
 	}
 	
-	/*
+	
 	public DenseMatrix adjointVec(DenseMatrix vect7) {
 		//	   Vector<7, Precision> result;
 		//     result.template slice<3,3>() = get_rotation() * vect.template slice<3,3>();
@@ -213,31 +236,59 @@ public class SIM3 {
 		DenseMatrix vect33 = vect7.slice(3, 6, 0, 1);
 		DenseMatrix vect03 = vect7.slice(0, 3, 0, 1);
 		
-	    DenseMatrix rotMulVect33 = getRotationMat().mul(vect33);
-	    DenseMatrix rotMulVect03 = getRotationMat().mul(vect03);
+	    DenseMatrix rotMulVect33 = getRotationMat().mmul(vect33);
+	    DenseMatrix rotMulVect03 = getRotationMat().mmul(vect03);
 	    
+		DenseMatrix trans_rotMulVect33 = Vec.cross(getTranslationMat(), rotMulVect33);
 		
-		DenseMatrix transMul_rotMulVect33 = getTranslationMat().mul(rotMulVect33);
-		
-
 	    DenseMatrix result = new DenseMatrix(new double[][]{
 	    		{rotMulVect03.get(0, 0)},{rotMulVect03.get(1, 0)},{rotMulVect03.get(2, 0)},
-	    		{rotMulVect33.get(0, 0) + transMul_rotMulVect33.get(0, 0)},
-	    		{rotMulVect33.get(1, 0) + transMul_rotMulVect33.get(1, 0)},
-	    		{rotMulVect33.get(2, 0) + transMul_rotMulVect33.get(2, 0)},{0}}); 
+	    		{rotMulVect33.get(0, 0) + trans_rotMulVect33.get(0, 0)},
+	    		{rotMulVect33.get(1, 0) + trans_rotMulVect33.get(1, 0)},
+	    		{rotMulVect33.get(2, 0) + trans_rotMulVect33.get(2, 0)},{0}}); 
 		
 		return result;
+	}
+	
+	/*public DenseMatrix adjoint() {
+		
+//		 Matrix<7,7,Precision> result;
+//		 for(int i=0; i<7; i++){
+//		 	result.T()[i] = adjoint(M.T()[i]);
+//		 }
+//		 for(int i=0; i<7; i++){
+//			result[i] = adjoint(result[i]);
+//		 }
+//		 return result;
+
+		for(int i=0; i<7; i++){
+//		 	result.T()[i] = adjoint(M.T()[i]);
+//		 }
+		
+		
+		return null;
 	}*/
+	
+	// so3 hat
+	DenseMatrix hat(DenseMatrix a) {
+	    DenseMatrix A = new DenseMatrix(
+	    	new double[][] {
+	    			{0           ,-a.get(2, 0) ,a.get(1, 0) },
+	    			{-a.get(2, 0), 0           , -a.get(0, 0)},
+	    			{-a.get(1, 0), a.get(0, 0) , 0           }
+	    	});
+	    return A;
+	  }
 	
 	public DenseMatrix adjoint() {
 		
 		DenseMatrix result = null;
 		DenseMatrix rot = getRotationMat();
 		DenseMatrix trans = getTranslationMat();
-		DenseMatrix unitTrans = Vec.unit7(trans);
+		DenseMatrix hatTrans = hat(trans);
 		
 		DenseMatrix scaleMulR = rot.mul(scale);
-		DenseMatrix unitTransMulR = unitTrans.mul(rot);
+		DenseMatrix unitTransMulR = hatTrans.mmul(rot);
 		
 		
 		result = new DenseMatrix(new double[][]{
@@ -260,6 +311,27 @@ public class SIM3 {
 	
 	public void assertNotNaN() {
 		assert(!Double.isNaN(scale));
+		assert(!Double.isInfinite(scale));
 		se3.assertNotNaN();
 	}
+	
+	public static void main(String[] args) {
+		
+		SIM3 FtoC = SIM3.exp(new double[]{0.0656, -0.1039, 0.0033, -0.0308, 0.0010, 0.0184, 0.0180}).inverse();
+		//SIM3 FtoC = SIM3.exp(new double[]{1,1,1,1,1,1,1}).inverse();
+		//SIM3 FtoC = new SIM3(new SE3(), 1);
+		
+		
+		
+		System.out.println(Arrays.toString(SIM3.ln(FtoC)));
+		
+		//FtoC = FtoC.inverse();
+		//System.out.println(Arrays.toString(SIM3.ln(FtoC)));
+		
+		for (int i=0 ; i<100 ; i++) {
+			FtoC = SIM3.exp(FtoC.ln());
+			System.out.println(Arrays.toString(SIM3.ln(FtoC)));
+		}
+	}
+	
 }

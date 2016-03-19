@@ -1,5 +1,7 @@
 package Tracking;
 
+import java.util.Arrays;
+
 import DataStructures.Frame;
 import DataStructures.TrackingReference;
 import LieAlgebra.SIM3;
@@ -103,11 +105,11 @@ public class SIM3Tracker {
 		lastDepthResidual = lastPhotometricResidual = lastDepthResidualUnweighted = lastPhotometricResidualUnweighted = lastResidualUnweighted = 0;
 		pointUsage = 0;
 		
-
-		// **
-		// Do not use more than 4 levels for odometry tracking
-		for (int level = 4; level < Constants.PYRAMID_LEVELS; ++level)
-			maxItsPerLvl[level] = 0;
+//
+//		// **
+//		// Do not use more than 4 levels for odometry tracking
+//		for (int level = 4; level < Constants.PYRAMID_LEVELS; ++level)
+//			maxItsPerLvl[level] = 0;
 		
 	}
 	
@@ -151,6 +153,7 @@ public class SIM3Tracker {
 		
 		diverged = false;
 	
+		System.out.println("trackFrameSim3 init: " + Arrays.toString(frameToReference_initialEstimate.ln()));
 	
 		// ============ track frame ============
 	    SIM3 referenceToFrame = frameToReference_initialEstimate.inverse();
@@ -169,8 +172,9 @@ public class SIM3Tracker {
 			numCalcResidualCalls[lvl] = 0;
 			numCalcWarpUpdateCalls[lvl] = 0;
 	
-			if(maxItsPerLvl[lvl] == 0)
+			if(maxItsPerLvl[lvl] == 0) {
 				continue;
+			}
 	
 			reference.createPointCloud(lvl);
 	
@@ -180,6 +184,7 @@ public class SIM3Tracker {
 					(frame.width(0)>>lvl)*(frame.height(0)>>lvl) || buf_warped_size < 10)
 			{
 				diverged = true;
+				System.out.println("trackFrameSim3 return 1");
 				return new SIM3();
 			}
 	
@@ -202,6 +207,7 @@ public class SIM3Tracker {
 			warp_update_up_to_date = false;
 			for(int iteration=0; iteration < maxItsPerLvl[lvl]; iteration++)
 			{
+				System.out.println("----- iteration: " + iteration + " -----");
 	
 				// calculate LS System, result is saved in ls.
 				calcSim3LGS(ls7);
@@ -217,18 +223,29 @@ public class SIM3Tracker {
 					// solve LS system with current lambda
 					DenseMatrix b = ls7.b.div(-ls7.num_constraints);//7x1
 					DenseMatrix A = ls7.A.div(ls7.num_constraints);//7x7
+					
+					System.out.println("A " + ls7.A);
+					System.out.println("b " + ls7.b);
+					System.out.println("nc " + ls7.num_constraints);
+					
 					for(int i=0;i<7;i++)
 						 A.set(i, i, A.get(i,i) * (1+LM_lambda));
 					DenseMatrix inc = A.ldltSolve(b);//7x1
 					incTry++;
 	
+					
 
 					double[] incVec = Vec.vec7ToArray(inc);
+					
+					System.out.println("incVec: " + Arrays.toString(incVec));
+					
 					float absInc = (float) Vec.dot(incVec, incVec);
 					if(!(absInc >= 0 && absInc < 1))
 					{
 						// ERROR tracking diverged.
-						lastSim3Hessian = jeigen.Shortcuts.zeros(7, 1);
+						System.err.println("absInc: " + absInc);
+						lastSim3Hessian = jeigen.Shortcuts.zeros(7, 7);
+						System.out.println("trackFrameSim3 return 2");
 						return new SIM3();
 					}
 	
@@ -243,6 +260,7 @@ public class SIM3Tracker {
 							* (frame.width(0)>>lvl)*(frame.height(0)>>lvl) || buf_warped_size < 10)
 					{
 						diverged = true;
+						System.out.println("trackFrameSim3 return 3");
 						return new SIM3();
 					}
 	
@@ -377,6 +395,7 @@ public class SIM3Tracker {
 		if(referenceToFrame.getScale() <= 0 )
 		{
 			diverged = true;
+			System.out.println("trackFrameSim3 return 4");
 			return new SIM3();
 		}
 	
@@ -384,7 +403,7 @@ public class SIM3Tracker {
 		lastDepthResidual = finalResidual.meanD;
 		lastPhotometricResidual = finalResidual.meanP;
 	
-	
+		System.out.println("TrackFrameSim3 referenceToFrame: " + Arrays.toString(referenceToFrame.ln()));
 		return referenceToFrame.inverse();
 	}
 	
@@ -457,7 +476,7 @@ public class SIM3Tracker {
 		//Eigen::Vector4f* frame_intensityAndGradients = frame.gradients[level];
 	
 		float[] frame_gradx = frame.imageGradientXArrayLvl[level];
-		float[] frame_grady = frame.imageGradientXArrayLvl[level];
+		float[] frame_grady = frame.imageGradientYArrayLvl[level];
 		float[] frame_gray = frame.imageArrayLvl[level];
 		
 	
@@ -469,8 +488,16 @@ public class SIM3Tracker {
 		
 		int numValidPoints = 0;
 		
+		// TODO: REMOVE
+		float sumResidual = 0;
+		
+		System.out.println("rotMat: " + rotMat.toString());
+		System.out.println("transVec: " + transVec.toString());
+		
+		System.out.println("level " + level);
+		
 		for(int i=0 ; i<refPoint.length ; i++) {
-
+			
 			if (refPoint[i] == null) {
 				continue;
 			}
@@ -529,7 +556,8 @@ public class SIM3Tracker {
 	
 			buf_warped_residual[idx] = residual_p;
 			buf_idepthVar[idx] = (float) refColVar[i].get(1, 0);
-	
+			
+			sumResidual += residual_p;
 	
 			// new (only for Sim3):
 			int idx_rounded = (int)(u_new+0.5f) + w*(int)(v_new+0.5f);
@@ -595,8 +623,12 @@ public class SIM3Tracker {
 	
 		//affineEstimation_a_lastIt = sqrtf((syy - sy*sy/sw) / (sxx - sx*sx/sw));
 		//affineEstimation_b_lastIt = (sy - affineEstimation_a_lastIt*sx)/sw;
-	
-	
+		
+		System.out.println("SUMRESIDUAL " + sumResidual);
+		System.out.println("numValid " + numValidPoints);
+		System.out.println("usageCount " + usageCount);
+		
+		
 		/*
 		if(plotSim3TrackingIterationInfo)
 		{
@@ -624,8 +656,19 @@ public class SIM3Tracker {
 		Sim3ResidualStruct sumRes = new Sim3ResidualStruct();
 		//memset(&sumRes, 0, sizeof(Sim3ResidualStruct));
 
-		float sum_rd=0, sum_rp=0, sum_wrd=0, sum_wrp=0, sum_wp=0, sum_wd=0, sum_num_d=0, sum_num_p=0;
+		//float sum_rd=0, sum_rp=0, sum_wrd=0, sum_wrp=0, sum_wp=0, sum_wd=0, sum_num_d=0, sum_num_p=0;
 
+		float sumpx = 0;
+		float sumpy = 0;
+		float sumpz = 0;
+		float sumd  = 0;
+		float sumrp = 0;
+		float sumrd = 0;
+		float sumgx = 0;
+		float sumgy = 0;
+		float sums  = 0;
+		float sumsv = 0;
+		
 		for(int i=0;i<buf_warped_size;i++)
 		{
 			float px = buf_warped_x[i];	// x'
@@ -634,15 +677,25 @@ public class SIM3Tracker {
 
 			float d  = buf_d[i];	// d
 
-			float rp = buf_warped_residual[i]; // r_p
-			float rd = buf_residual_d[i];	 // r_d
+			float rp = buf_warped_residual[i]; 	// r_p
+			float rd = buf_residual_d[i];	 	// r_d
 
 			float gx = buf_warped_dx[i];	// \delta_x I
-			float gy = buf_warped_dy[i];  // \delta_y I
+			float gy = buf_warped_dy[i];	// \delta_y I
 
 			float s = var_weight * buf_idepthVar[i];	// \sigma_d^2
 			float sv = var_weight * buf_warped_idepthVar[i];	// \sigma_d^2'
 
+			sumpx += px;
+			sumpy += py;
+			sumpz += pz;
+			sumd  += d ;
+			sumrp += rp;
+			sumrd += rd;
+			sumgx += gx;
+			sumgy += gy;
+			sums  += s ;
+			sumsv += sv;
 
 			// calc dw/dd (first 2 components):
 			float g0 = (tx * pz - tz * px) / (pz*pz*d);
@@ -710,6 +763,22 @@ public class SIM3Tracker {
 		sumRes.meanD = (sumRes.sumResD) / (sumRes.numTermsD);
 		sumRes.meanP = (sumRes.sumResP) / (sumRes.numTermsP);
 
+		System.out.println("sumRes " + sumRes.mean + ", " + sumRes.meanD + ", " + sumRes.meanP
+				 			+ ", " + sumRes.numTermsD + ", " + sumRes.numTermsP
+				 			 + ", " + sumRes.sumResD + ", " + sumRes.sumResP);
+		
+		System.out.println("sums "+ sumpx + " " +
+									sumpy + " " +
+									sumpz + " " +
+									sumd  + " " +
+									sumrp + " " +
+									sumrd + " " +
+									sumgx + " " +
+									sumgy + " " +
+									sums  + " " +
+									sumsv + " " );
+
+		
 		/*
 		if(plotSim3TrackingIterationInfo)
 		{
@@ -732,6 +801,10 @@ public class SIM3Tracker {
 //		ls6.initialize(width*height);
 //		ls4.initialize(width*height);
 
+		float z_sqr_sum = 0;
+		float rd_sum = 0;
+		float wd_sum = 0;
+		
 		for(int i=0;i<buf_warped_size;i++)
 		{
 			float px = buf_warped_x[i];	// x'
@@ -744,18 +817,18 @@ public class SIM3Tracker {
 			float rp = buf_warped_residual[i]; // r_p
 			float rd = buf_residual_d[i];	 // r_d
 
-			float gx = buf_warped_dx[i];	// \delta_x I
+			float gx = buf_warped_dx[i];  // \delta_x I
 			float gy = buf_warped_dy[i];  // \delta_y I
 
-
+					
 			float z = 1.0f / pz;
 			float z_sqr = 1.0f / (pz*pz);
 			DenseMatrix v;		// 6x1
 			DenseMatrix v4;		// 4x1
 			
 			v = new DenseMatrix(new double[][]{
-					{z*gx + 0},
-					{0 + z*gy},
+					{z*gx},
+					{z*gy},
 					{(-px * z_sqr) * gx + (-py * z_sqr) * gy},
 					{(-px * py * z_sqr) * gx + (-(1.0 + py * py * z_sqr)) * gy},
 					{(1.0 + px * px * z_sqr) * gx + (px * py * z_sqr) * gy},
@@ -770,16 +843,33 @@ public class SIM3Tracker {
 				{-z_sqr * px},
 				{z}
 			});
+			
+			// TODO: REMOVE
+			z_sqr_sum += z_sqr;
+			rd_sum += rd;
+			wd_sum += wd;
+			
 
-			ls6.update(v, rp, wp);		// Jac = - v
+			ls6.update(v, rp, wp);	// Jac = - v
 			ls4.update(v4, rd, wd);	// Jac = v4
 
 		}
 
-		ls4.finishNoDivide();
+		System.out.println("==" + z_sqr_sum + " " + rd_sum + " " + wd_sum);
+		
+		//ls4.finishNoDivide();
 		//ls6.finishNoDivide();
 
-
+		System.out.println("ls4.A " + ls4.A);
+		System.out.println("ls4.b " + ls4.b);
+		System.out.println("ls4.nc " + ls4.num_constraints);
+		System.out.println("ls4.error " + ls4.error);
+		
+		System.out.println("ls6.A " + ls6.A);
+		System.out.println("ls6.b " + ls6.b);
+		System.out.println("ls6.nc " + ls6.numConstraints);
+		System.out.println("ls6.error " + ls6.error);
+		
 		ls7.initializeFrom(ls6, ls4);
 
 	}

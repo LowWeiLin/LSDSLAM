@@ -41,6 +41,17 @@ public class Vec {
 	}
 	
 	/**
+	 * Calculates cross product of 2 vectors. Assumes vectors of length 3
+	 */
+	public static DenseMatrix cross(DenseMatrix a, DenseMatrix b) {
+		DenseMatrix result = new DenseMatrix(new double[][] {
+							{a.get(0, 1)*b.get(0, 2)-a.get(0, 2)*b.get(0, 1)},
+							{a.get(0, 2)*b.get(0,0)-a.get(0,0)*b.get(0, 2)},
+							{a.get(0,0)*b.get(0, 1)-a.get(0, 1)*b.get(0,0)}});
+		return result;
+	}
+	
+	/**
 	 * Scalar multiply s to vector vec0
 	 */
 	public static void scalarMult(double[] vec0, double s) {
@@ -146,6 +157,12 @@ public class Vec {
 		double[] unit = vec7ToArray(vec7);
 		unit(unit);
 		return array7ToVec(unit);
+	}
+	
+	public static DenseMatrix unit3(DenseMatrix vec3) {
+		double[] unit = vec3ToArray(vec3);
+		unit(unit);
+		return array3ToVec(unit);
 	}
 
 	/**

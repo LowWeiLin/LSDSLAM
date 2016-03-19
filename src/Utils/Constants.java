@@ -4,7 +4,7 @@ import jeigen.DenseMatrix;
 
 public class Constants {
 	
-	public static float EPSILON = 1e-5f;
+	public static float EPSILON = 1e-10f;
 	
 	public static float loopclosureStrictness = 1.5f;
 	public static int maxLoopClosureCandidates = 10;

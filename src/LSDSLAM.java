@@ -250,6 +250,17 @@ public class LSDSLAM {
 			}
 		}
 		
+		// TODO: REMOVE THIS
+		if (trackingNewFrame.id() >= 11 && trackingNewFrame.id() <=14) {
+			if (trackingNewFrame.id() == 14) {
+				createNewKeyFrame = true;
+				trackingNewFrame.isKF = true;
+			} else {
+				createNewKeyFrame = false;
+				trackingNewFrame.isKF = false;
+			}
+			
+		}
 		
 
 		// Push into deque for mapping
@@ -511,7 +522,7 @@ public class LSDSLAM {
 		System.out.println("findConstraintsForNewKeyFrames");
 		if(!newKeyFrame.hasTrackingParent())
 		{
-			keyFrameGraph.addFrame(newKeyFrame);
+			keyFrameGraph.addKeyFrame(newKeyFrame);
 			newConstraintAdded = true;
 			System.out.println("findConstraintsForNewKeyFrames - ret 0");
 			return 0;
@@ -552,8 +563,9 @@ public class LSDSLAM {
 		{
 			SIM3 candidateToFrame_initialEstimate = newKeyFrame.getScaledCamToWorld().inverse().mul( 
 					candidate.getScaledCamToWorld());
+			//System.out.println("Add candidate: frame " + candidate.id() + ", " + Arrays.toString(candidateToFrame_initialEstimate.ln()));
 			candidateToFrame_initialEstimateMap.put(candidate, candidateToFrame_initialEstimate);
-			System.out.println("candidateToFrame_initialEstimateMap " + candidateToFrame_initialEstimateMap.size());
+			//System.out.println("candidateToFrame_initialEstimateMap " + candidateToFrame_initialEstimateMap.size());
 		}
 
 		Map<Frame, Integer> distancesToNewKeyFrame = new HashMap<Frame, Integer>();
@@ -887,7 +899,13 @@ public class LSDSLAM {
 				k.usage = 0;
 				
 				constraints.add(k);
-
+				
+				System.err.println("Constraint Found: " + k.firstFrame.id() + " - " + k.secondFrame.id());
+				if (k.firstFrame.pose.graphVertex != null)
+					System.err.println(k.firstFrame.id() + " - " + k.firstFrame.pose.graphVertex.id);
+				if (k.secondFrame.pose.graphVertex != null)
+					System.err.println(k.secondFrame.id() + " - " + k.secondFrame.pose.graphVertex.id);
+				
 				//poseConsistencyMutex.unlock_shared();
 			}
 		}
@@ -917,17 +935,29 @@ public class LSDSLAM {
 			KFConstraintStruct e1_out, KFConstraintStruct e2_out,
 			SIM3 candidateToFrame_initialEstimate,
 			float strictness)
-	{
+	{	
 		candidateTrackingReference.importFrame(candidate);
 
 		SIM3 FtoC = candidateToFrame_initialEstimate.inverse();
 		SIM3 CtoF = candidateToFrame_initialEstimate;
 		DenseMatrix FtoCInfo, CtoFInfo; // 7x7
+		
+		// TODO : REMOVE
+//		if (candidate.id() == 0) {
+//			FtoC = SIM3.exp(new double[]{0.0656, -0.1039, 0.0033, -0.0308, 0.0010, 0.0184, 0.0180}).inverse();
+//			CtoF = SIM3.inverse(FtoC);
+//		}
+		
 
-		float err_level3 = tryTrackSim3(
+		TryTrackSim3Result res_level3 = tryTrackSim3(
 				newKFTrackingReference, candidateTrackingReference,	// A = frame; b = candidate
 				Constants.SIM3TRACKING_MAX_LEVEL-1, 3,
 				FtoC, CtoF);
+		float err_level3 = res_level3.error;
+		FtoC = res_level3.AtoB;
+		CtoF = res_level3.BtoA;
+		
+		System.out.println("tryTrackSim3 err_level3: " + err_level3);
 
 		if(err_level3 > 3000*strictness)
 		{
@@ -945,11 +975,16 @@ public class LSDSLAM {
 			return new KFConstraintStruct[] {e1_out, e2_out};
 		}
 
-		float err_level2 = tryTrackSim3(
+		TryTrackSim3Result res_level2 = tryTrackSim3(
 				newKFTrackingReference, candidateTrackingReference,	// A = frame; b = candidate
 				2, 2,
 				FtoC, CtoF);
+		float err_level2 = res_level2.error;
+		FtoC = res_level2.AtoB;
+		CtoF = res_level2.BtoA;
 
+		System.out.println("tryTrackSim3 err_level2: " + err_level2);
+		
 		if(err_level2 > 4000*strictness)
 		{
 //			if(enablePrintDebugInfo && printConstraintSearchInfo)
@@ -967,11 +1002,17 @@ public class LSDSLAM {
 		e1_out = new KFConstraintStruct();
 		e2_out = new KFConstraintStruct();
 
-
-		float err_level1 = tryTrackSim3(
+		TryTrackSim3Result res_level1 = tryTrackSim3(
 				newKFTrackingReference, candidateTrackingReference,	// A = frame; b = candidate
 				1, 1,
 				FtoC, CtoF, e1_out, e2_out);
+		float err_level1 = res_level1.error;
+		FtoC = res_level1.AtoB;
+		CtoF = res_level1.BtoA;
+		e1_out = res_level1.e1;
+		e2_out = res_level1.e2;
+	
+		System.out.println("tryTrackSim3 err_level1: " + err_level3);
 
 		if(err_level1 > 6000*strictness)
 		{
@@ -1006,8 +1047,22 @@ public class LSDSLAM {
 	}
 	
 	
-
-	float tryTrackSim3(
+	public class TryTrackSim3Result {
+		public float error;
+		public SIM3 AtoB;
+		public SIM3 BtoA;
+		public KFConstraintStruct e1;
+		public KFConstraintStruct e2;
+		public TryTrackSim3Result(float error, SIM3 AtoB, SIM3 BtoA, KFConstraintStruct e1, KFConstraintStruct e2) {
+			this.error = error;
+			this.AtoB = AtoB;
+			this.BtoA = BtoA;
+			this.e1 = e1;
+			this.e2 = e2;
+		}
+	}
+	
+	TryTrackSim3Result tryTrackSim3(
 			TrackingReference A, TrackingReference B,
 			int lvlStart, int lvlEnd,
 			SIM3 AtoB, SIM3 BtoA) {
@@ -1017,7 +1072,7 @@ public class LSDSLAM {
 				AtoB, BtoA,
 				null, null);
 	}
-	float tryTrackSim3(
+	TryTrackSim3Result tryTrackSim3(
 			TrackingReference A, TrackingReference B,
 			int lvlStart, int lvlEnd,
 			SIM3 AtoB, SIM3 BtoA,
@@ -1026,6 +1081,10 @@ public class LSDSLAM {
 		assert(A != null);
 		assert(B != null);
 		assert(constraintTracker != null);
+		
+		System.out.println("tryTrackSim3 " + A.keyframe.id() + " - " + B.keyframe.id());
+		System.out.println("AtoB: " + Arrays.toString(AtoB.ln()));
+		
 		BtoA = constraintTracker.trackFrameSim3(
 				A,
 				B.keyframe,
@@ -1044,7 +1103,18 @@ public class LSDSLAM {
 			BtoAInfo.get(0,0) == 0 ||
 			BtoAInfo.get(6,6) == 0)
 		{
-			return (float) 1e20;
+			System.err.println("tryTrackSim3 fail 1");
+			System.err.println("constraintTracker.diverged: " + constraintTracker.diverged);
+			System.err.println("BtoA.getScale(): " + BtoA.getScale());
+			System.err.println("BtoA.getScale(): " + BtoA.getScale());
+			System.err.println("BtoAInfo.get(0,0): " + BtoAInfo.get(0,0));
+
+			System.err.println("BtoAInfo.shape: " + BtoAInfo.rows + ", " + BtoAInfo.cols);
+			
+			System.err.println("BtoAInfo.get(6,6): " + BtoAInfo.get(6,6));
+			
+			
+			return new TryTrackSim3Result((float) 1e20, AtoB, BtoA, e1, e2);
 		}
 
 
@@ -1066,7 +1136,14 @@ public class LSDSLAM {
 			AtoBInfo.get(0,0) == 0 ||
 			AtoBInfo.get(6,6) == 0)
 		{
-			return (float) 1e20;
+
+			System.err.println("tryTrackSim3 fail 2");
+			System.err.println("constraintTracker.diverged: " + constraintTracker.diverged);
+			System.err.println("AtoB.getScale(): " + AtoB.getScale());
+			System.err.println("AtoB.getScale(): " + AtoB.getScale());
+			System.err.println("AtoBInfo.get(0,0): " + AtoBInfo.get(0,0));
+			System.err.println("AtoBInfo.get(6,6): " + AtoBInfo.get(6,6));
+			return new TryTrackSim3Result((float) 1e20, AtoB, BtoA, e1, e2);
 		}
 
 		// Propagate uncertainty (with d(a * b) / d(b) = Adj_a) and calculate Mahalanobis norm
@@ -1074,15 +1151,15 @@ public class LSDSLAM {
 		// 7x7
 		DenseMatrix datimesb_db = AtoB.adjoint();
 		DenseMatrix diffHesse = (AtoBInfo.fullPivHouseholderQRSolve(DenseMatrix.eye(7)).add(
-				datimesb_db.mul(
-						BtoAInfo.fullPivHouseholderQRSolve(DenseMatrix.eye(7))).mul(
+				datimesb_db.mmul(
+						BtoAInfo.fullPivHouseholderQRSolve(DenseMatrix.eye(7))).mmul(
 						datimesb_db.t())))
 				.fullPivHouseholderQRSolve(DenseMatrix.eye(7));
 		// 7x1
 		DenseMatrix diff = Vec.array7ToVec((AtoB.mul(BtoA)).ln());
 
 
-		float reciprocalConsistency = (float) (diffHesse.mul(diff)).mul(diff.t()).get(0, 0); // dot product
+		float reciprocalConsistency = (float) (diffHesse.mmul(diff)).mmul(diff.t()).get(0, 0); // dot product
 
 
 		if(e1 != null && e2 != null)
@@ -1108,6 +1185,6 @@ public class LSDSLAM {
 			e1.reciprocalConsistency = e2.reciprocalConsistency = reciprocalConsistency;
 		}
 
-		return reciprocalConsistency;
+		return new TryTrackSim3Result(reciprocalConsistency, AtoB, BtoA, e1, e2);
 	}
 }

@@ -4,10 +4,10 @@ import LieAlgebra.SIM3;
 
 public class VertexSim3 {
 
-	int id;
-	boolean fixed;
-	SIM3 estimate;
-	boolean marginalized;
+	public int id;
+	public boolean fixed;
+	public SIM3 estimate;
+	public boolean marginalized;
 	
 	
 	public void setId(int id) {
