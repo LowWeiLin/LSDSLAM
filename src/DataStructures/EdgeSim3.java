@@ -6,12 +6,13 @@ import LieAlgebra.SIM3;
 
 public class EdgeSim3 {
 
-	int id;
-	SIM3 measurement;
-	DenseMatrix information;
+	public int id;
+	public SIM3 measurement;
+	public DenseMatrix information;
 	
-	g2o_RobustKernel robustKernel;
+	public g2o_RobustKernel robustKernel;
 	
+	public VertexSim3[] vertices;
 	
 	public void setId(int id) {
 		this.id = id;
@@ -27,19 +28,20 @@ public class EdgeSim3 {
 	}
 	
 	public void resize(int size) {
-		// TODO: implement
-		return;
+		vertices = new VertexSim3[size];
 	}
 	
 	public void  setVertex(int i, VertexSim3 vertex) {
-		// TODO: implement
-	}
-	
-	public void setRobustKernel() {
-		// TODO: implement
+		vertices[i] = vertex;
 	}
 
 	public void setRobustKernel(g2o_RobustKernel robustKernel) {
 		this.robustKernel = robustKernel;
+	}
+
+
+	public float chi2() {
+		// TODO Auto-generated method stub
+		return 0;
 	}
 }

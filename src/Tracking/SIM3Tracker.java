@@ -403,6 +403,8 @@ public class SIM3Tracker {
 		lastDepthResidual = finalResidual.meanD;
 		lastPhotometricResidual = finalResidual.meanP;
 	
+		System.out.println("TrackFrameSim3 referenceToFrame: " + startLevel + ", " + finalLevel);
+		System.out.println("TrackFrameSim3 referenceToFrame: " + reference.keyframe.id() + " -> " + frame.id());
 		System.out.println("TrackFrameSim3 referenceToFrame: " + Arrays.toString(referenceToFrame.ln()));
 		return referenceToFrame.inverse();
 	}

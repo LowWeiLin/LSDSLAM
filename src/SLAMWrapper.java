@@ -1,4 +1,6 @@
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.UnsupportedEncodingException;
 
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
@@ -78,6 +80,20 @@ public class SLAMWrapper {
 			
 			// TODO: Do constraint search here?
 			lsdSlam.constraintSearchIteration();
+			
+			// TODO: Do optimization here?
+			// Do after constraint search, if new KF is added.
+			//lsdSlam.optimizationIteration(50, 0.001);
+			
+			// WRITE POINT CLOUD TO FILE
+			if (lsdSlam.flushPC == true) {
+				try {
+					//keyFrameGraph.writePointCloudToFile("graphPOINTCLOUD-" + currentKeyFrame.id() + ".ply");
+					lsdSlam.keyFrameGraphDisplay.writePointCloudToFile("graphPOINTCLOUD-" + (imageSeqNumber-1) + ".ply");
+				} catch (FileNotFoundException | UnsupportedEncodingException e) {
+				}
+				lsdSlam.flushPC = false;
+			}
 			
 		}
 		

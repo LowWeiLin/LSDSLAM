@@ -51,17 +51,16 @@ public class KeyFrameGraph {
 	// contains all keyframes in graph, in some arbitrary (random) order. if a frame is re-tracked,
 	// it is put to the end of this list; frames for re-tracking are always chosen from the first third of
 	// this list.
-	//std::deque<Frame*> keyframesForRetrack;
-
+	public List<Frame> keyframesForRetrack = new ArrayList<Frame>();
 
 	/** Pose graph representation in g2o */
-	g2o_SparseOptimizer graph;
+	public g2o_SparseOptimizer graph = new g2o_SparseOptimizer();
 	
-	List<Frame> newKeyframesBuffer = new ArrayList<Frame>();
-	List<KFConstraintStruct> newEdgeBuffer = new ArrayList<KFConstraintStruct>();
+	public List<Frame> newKeyframesBuffer = new ArrayList<Frame>();
+	public List<KFConstraintStruct> newEdgeBuffer = new ArrayList<KFConstraintStruct>();
 
 	public int nextEdgeId;
-
+	
 	
 
 	public void addFrame(Frame frame) {
@@ -135,12 +134,8 @@ public class KeyFrameGraph {
 			//shortestDistancesMap
 		}*/
 	
-	
-	
-		//edgesListsMutex.lock();
 		constraint.idxInAllEdges = edgesAll.size();
 		edgesAll.add(constraint);
-		//edgesListsMutex.unlock();
 	}
 	
 	public void writePointCloudToFile(String filename
@@ -303,5 +298,50 @@ public class KeyFrameGraph {
 			
 		}
 		
+	}
+	
+	
+	public boolean addElementsFromBuffer()
+	{
+		boolean added = false;
+
+		for (Frame newKF : newKeyframesBuffer)
+		{
+			graph.addVertex(newKF.pose.graphVertex);
+			assert(!newKF.pose.isInGraph);
+			newKF.pose.isInGraph = true;
+
+			keyframesForRetrack.add(newKF);
+
+			added = true;
+		}
+
+		newKeyframesBuffer.clear();
+		for (KFConstraintStruct edge : newEdgeBuffer)
+		{
+			graph.addEdge(edge.edge);
+			added = true;
+		}
+		newEdgeBuffer.clear();
+
+		return added;
+	}
+
+	/** Optimizes the graph. Does not update the keyframe poses,
+	 *  only the vertex poses. You must call updateKeyFramePoses() afterwards. */
+	public int optimize(int num_iterations)
+	{
+		// Abort if graph is empty, g2o shows an error otherwise
+		if (graph.edges().size() == 0)
+			return 0;
+		
+		
+		graph.setVerbose(false); // printOptimizationInfo
+		graph.initializeOptimization();
+		
+
+		return graph.optimize(num_iterations, false);
+
+		//return 0;
 	}
 }

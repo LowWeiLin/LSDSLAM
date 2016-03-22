@@ -60,14 +60,23 @@ public class FramePoseStruct {
 	}
 
 	public void setPoseGraphOptResult(SIM3 camToWorld) {
-		
+		if(!isInGraph)
+			return;
+
+		camToWorld_new = camToWorld;
+		hasUnmergedPose = true;
 	}
 	
 	public void applyPoseGraphOptResult() {
-		
+		if(!hasUnmergedPose)
+			return;
+
+		camToWorld = camToWorld_new;
+		isOptimized = true;
+		hasUnmergedPose = false;
+		cacheValidCounter++;
 	}
 	
-
 	public SIM3 getCamToWorld() {
 		return getCamToWorld(0);
 	}
@@ -77,30 +86,25 @@ public class FramePoseStruct {
 		assert(recursionDepth < 5000);
 
 		// if the node is in the graph, it's absolute pose is only changed by optimization.
-		//if(isOptimized) return camToWorld;
-
-
-		/*
-		
-		// return chached pose, if still valid.
-		if(cacheValidFor == cacheValidCounter)
+		if(isOptimized)
 			return camToWorld;
 
-		// abs. pose is computed from the parent's abs. pose, and cached.
-		cacheValidFor = cacheValidCounter;
-		*/
-		
+		// return cached pose, if still valid.
+		if(cacheValidFor == cacheValidCounter)
+			return camToWorld;
 
 		// return id if there is no parent (very first frame)
 		if(trackingParent == null)
 			return camToWorld = new SIM3();
+
+		// abs. pose is computed from the parent's abs. pose, and cached.
+		cacheValidFor = cacheValidCounter;
 		
 		/*
 		System.out.println("+++");
 		System.out.println(trackingParent.getCamToWorld(recursionDepth+1).toString());
 		System.out.println(thisToParent_raw.toString());
 		*/
-		
 		
 		return camToWorld = trackingParent.getCamToWorld(recursionDepth+1).mul(thisToParent_raw);
 	}

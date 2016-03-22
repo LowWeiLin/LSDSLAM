@@ -1,14 +1,7 @@
 package DataStructures;
 
-import java.io.FileNotFoundException;
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
-import java.util.List;
-
 import jeigen.DenseMatrix;
-import LieAlgebra.SE3;
 import Utils.Constants;
-import Utils.PlyWriter;
 
 public class TrackingReference {
 
@@ -101,75 +94,12 @@ public class TrackingReference {
 		return keyframe.height(level);
 	}
 	
-	public void writePointCloudToFile(String filename, DenseMatrix[] pointCloud, int width, int height) throws FileNotFoundException, UnsupportedEncodingException {
-		
-		List<DenseMatrix> cameraPosePoints = generateCameraPosePoints();
-		List<DenseMatrix> allPoints = new ArrayList<DenseMatrix>();
-		
-		// Insert point cloud points
-		int size = width*height;
-		for (int i=0 ; i<size ; i++) {
-			if (pointCloud[i] == null) {
-				continue;
-			}
-			allPoints.add(pointCloud[i]);
-		}
-		
-		// Insert camera points
-		for (int i=0 ; i<cameraPosePoints.size() ; i++) {
-			DenseMatrix point = cameraPosePoints.get(i);
-			allPoints.add(point);
- 		}
-		
-		// Write to file
-		PlyWriter.writePoints(filename, allPoints);
-		
-	}
-
 	public void importFrame(Frame currentKeyFrame) {
 		keyframe = currentKeyFrame;
 	}
 
 	public void invalidate() {
 		keyframe = null;
-	}
-	
-	public List<DenseMatrix> generateCameraPosePoints() {
-		List<SE3> cameraPose = keyframe.trackedOnPoses;
-		
-		List<DenseMatrix> cameraPoints = new ArrayList<>();
-		
-		// For KF, Plot the XYZ axis
-		DenseMatrix c = new DenseMatrix(
-				new double[][]{{0},{0},{0},
-							   {255},{255},{0}});
-		cameraPoints.add(c);
-		DenseMatrix x = new DenseMatrix(
-				new double[][]{{0.1},{0},{0},
-							   {255},{0},{0}});
-		cameraPoints.add(x);
-		DenseMatrix y = new DenseMatrix(
-				new double[][]{{0},{0.1},{0},
-							   {0},{255},{0}});
-		cameraPoints.add(y);
-		DenseMatrix z = new DenseMatrix(
-				new double[][]{{0},{0},{0.1},
-							   {0},{0},{255}});
-		cameraPoints.add(z);
-		
-		for (int i=0 ; i<cameraPose.size() ; i++) {
-			SE3 se3 = cameraPose.get(i);
-			DenseMatrix point = new DenseMatrix(
-					new double[][]{{se3.translation.get(0, 0)},
-								   {se3.translation.get(1, 0)},
-								   {se3.translation.get(2, 0)},
-								   {255},{0},{0}});
-			cameraPoints.add(point);
-			
-			
-		}
-		
-		return cameraPoints;
 	}
 	
 }

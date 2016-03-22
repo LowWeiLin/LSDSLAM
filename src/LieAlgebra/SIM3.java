@@ -81,8 +81,6 @@ public class SIM3 {
 		newSim3.se3.rotation.mulEq(sim3.getRotation());
 		newSim3.scale *= sim3.getScale();
 		
-		System.out.println(newSim3.scale + " * "+ sim3.getScale());
-		
 		newSim3.assertNotNaN();
 		
 		return newSim3;

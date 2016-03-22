@@ -1,5 +1,8 @@
 package DataStructures;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import LieAlgebra.SIM3;
 
 public class VertexSim3 {
@@ -9,6 +12,7 @@ public class VertexSim3 {
 	public SIM3 estimate;
 	public boolean marginalized;
 	
+	public List<EdgeSim3> edges =  new ArrayList<EdgeSim3>();
 	
 	public void setId(int id) {
 		this.id = id;
@@ -24,6 +28,14 @@ public class VertexSim3 {
 	
 	public void setMarginalized(boolean marginalized) {
 		this.marginalized = marginalized;
+	}
+
+	public List<EdgeSim3> edges() {
+		return edges;
+	}
+
+	public SIM3 estimate() {
+		return estimate;
 	}
 	
 }

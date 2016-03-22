@@ -16,6 +16,7 @@ import jeigen.DenseMatrix;
 
 import org.opencv.core.Mat;
 
+import DataStructures.EdgeSim3;
 import DataStructures.Frame;
 import DataStructures.FramePoseStruct;
 import DataStructures.KFConstraintStruct;
@@ -23,6 +24,7 @@ import DataStructures.KeyFrameGraph;
 import DataStructures.TrackingReference;
 import DepthEstimation.DepthMap;
 import GlobalMapping.TrackableKeyFrameSearch;
+import IO.KeyFrameGraphDisplay;
 import LieAlgebra.SE3;
 import LieAlgebra.SIM3;
 import LieAlgebra.SO3;
@@ -30,8 +32,6 @@ import LieAlgebra.Vec;
 import Tracking.SE3Tracker;
 import Tracking.SIM3Tracker;
 import Utils.Constants;
-
-import java.util.Random;
 
 public class LSDSLAM {
 	
@@ -48,6 +48,8 @@ public class LSDSLAM {
 	TrackingReference trackingReference;
 	TrackingReference mappingTrackingReference;
 	KeyFrameGraph keyFrameGraph;
+
+	KeyFrameGraphDisplay keyFrameGraphDisplay;
 	
 	Frame latestTrackedFrame;
 	float lastTrackingClosenessScore;
@@ -71,15 +73,22 @@ public class LSDSLAM {
 	// optimization thread
 	boolean newConstraintAdded;
 	
+	// optimization merging. SET in Optimization, merged in Mapping.
+	boolean haveUnmergedOptimizationOffset;
+	
+	public boolean flushPC = false;
+	
 	public LSDSLAM() {
 
 		trackingReference = new TrackingReference();
 		mappingTrackingReference = new TrackingReference();
 		keyFrameGraph = new KeyFrameGraph();
+
+		keyFrameGraphDisplay = new KeyFrameGraphDisplay(keyFrameGraph);
 		
+		haveUnmergedOptimizationOffset = false;
 		
-		
-		
+
 	}
 	
 	public void randomInit(Mat image, int id) {
@@ -246,21 +255,22 @@ public class LSDSLAM {
 				System.err.println("CREATE NEW KEYFRAME");
 				createNewKeyFrame = true;
 				trackingNewFrame.isKF = true;
+				flushPC = true;
 			} else {
 			}
 		}
 		
 		// TODO: REMOVE THIS
-		if (trackingNewFrame.id() >= 11 && trackingNewFrame.id() <=14) {
-			if (trackingNewFrame.id() == 14) {
-				createNewKeyFrame = true;
-				trackingNewFrame.isKF = true;
-			} else {
-				createNewKeyFrame = false;
-				trackingNewFrame.isKF = false;
-			}
-			
-		}
+//		if (trackingNewFrame.id() >= 11 && trackingNewFrame.id() <=14) {
+//			if (trackingNewFrame.id() == 14) {
+//				createNewKeyFrame = true;
+//				trackingNewFrame.isKF = true;
+//			} else {
+//				createNewKeyFrame = false;
+//				trackingNewFrame.isKF = false;
+//			}
+//			
+//		}
 		
 
 		// Push into deque for mapping
@@ -404,12 +414,6 @@ public class LSDSLAM {
 			}
 		}
 		
-		// WRITE POINT CLOUD TO FILE
-		try {
-			keyFrameGraph.writePointCloudToFile("graphPOINTCLOUD-" + currentKeyFrame.id() + ".ply");
-		} catch (FileNotFoundException | UnsupportedEncodingException e) {
-		}
-		
 		//if(outputWrapper!= 0)
 		//	outputWrapper->publishKeyframe(currentKeyFrame.get());
 	}
@@ -497,6 +501,10 @@ public class LSDSLAM {
 			
 			findConstraintsForNewKeyFrames(newKF, true, 1.0f);
 			
+			
+			
+			// TODO: Should be here?
+			optimizationIteration(50, 0.001);
 		}
 		
 		
@@ -602,6 +610,7 @@ public class LSDSLAM {
 			c2f_init.rotation.mulEq(disturbance);
 			
 			// TRACK SE3
+			constraintSE3Tracker.initialize(newKeyFrame.width(0), newKeyFrame.height(0));
 			SE3 c2f = constraintSE3Tracker.trackFrameOnPermaref(candidate, newKeyFrame, c2f_init);
 			if(!constraintSE3Tracker.trackingWasGood) {
 				closeFailed++;
@@ -1187,4 +1196,65 @@ public class LSDSLAM {
 
 		return new TryTrackSim3Result(reciprocalConsistency, AtoB, BtoA, e1, e2);
 	}
+	
+	
+
+
+	boolean optimizationIteration(int itsPerTry, double minChange)
+	{
+		keyFrameGraph.addElementsFromBuffer();
+		
+	
+		// Do the optimization. This can take quite some time!
+		int its = keyFrameGraph.optimize(itsPerTry);
+		
+	
+		// save the optimization result.
+		float maxChange = 0;
+		float sumChange = 0;
+		float sum = 0;
+		for(int i=0;i<keyFrameGraph.keyframesAll.size(); i++)
+		{
+			// set edge error sum to zero
+			keyFrameGraph.keyframesAll.get(i).edgeErrorSum = 0;
+			keyFrameGraph.keyframesAll.get(i).edgesNum = 0;
+	
+			if(!keyFrameGraph.keyframesAll.get(i).pose.isInGraph)
+				continue;
+	
+	
+			// get change from last optimization
+			SIM3 a = keyFrameGraph.keyframesAll.get(i).pose.graphVertex.estimate();
+			SIM3 b = keyFrameGraph.keyframesAll.get(i).getScaledCamToWorld();
+			double[] diff = (a.mul(b.inverse())).ln();
+
+			for(int j=0;j<7;j++)
+			{
+				float d = Math.abs((float)(diff[j]));
+				if(d > maxChange) maxChange = d;
+				sumChange += d;
+			}
+			sum +=7;
+	
+			// set change
+			keyFrameGraph.keyframesAll.get(i).pose.setPoseGraphOptResult(
+					keyFrameGraph.keyframesAll.get(i).pose.graphVertex.estimate());
+	
+			// add error
+			System.out.println(keyFrameGraph.keyframesAll.get(i).pose.graphVertex.id);
+			for(EdgeSim3 edge : keyFrameGraph.keyframesAll.get(i).pose.graphVertex.edges())
+			{
+				keyFrameGraph.keyframesAll.get(i).edgeErrorSum += edge.chi2();
+				keyFrameGraph.keyframesAll.get(i).edgesNum++;
+			}
+		}
+	
+		haveUnmergedOptimizationOffset = true;
+	
+		System.out.printf("did %d optimization iterations. Max Pose Parameter Change: %f; avgChange: %f. %s\n", its, maxChange, sumChange / sum,
+				maxChange > minChange && its == itsPerTry ? "continue optimizing":"Waiting for addition to graph.");
+	
+		return maxChange > minChange && its == itsPerTry;
+	}
+	
 }

@@ -6,13 +6,12 @@ import java.util.Arrays;
 import jeigen.DenseMatrix;
 import DataStructures.Frame;
 import DataStructures.TrackingReference;
+import IO.KeyFrameDisplay;
 import LieAlgebra.SE3;
 import LieAlgebra.SIM3;
 import LieAlgebra.Vec;
 import Utils.Constants;
 import Utils.Utils;
-
-
 
 public class SE3Tracker {
 	
@@ -146,8 +145,8 @@ public class SE3Tracker {
 			// TODO: Write point cloud to file
 			if (level == 1) {
 				try {
-					referenceFrame.writePointCloudToFile("KFpointCloud-"+frame.id()+"-"+level+".ply",
-							referenceFrame.posDataLvl[level], referenceFrame.width(level), referenceFrame.height(level));
+					KeyFrameDisplay kfd = new KeyFrameDisplay(referenceFrame.keyframe);
+					kfd.writePointCloudToFile("KFpointCloud-"+frame.id()+"-"+level+".ply");
 				} catch (FileNotFoundException | UnsupportedEncodingException e) {
 					e.printStackTrace();
 				}
