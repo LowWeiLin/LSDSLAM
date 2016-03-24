@@ -19,8 +19,8 @@ import jeigen.DenseMatrix;
  */
 public class SIM3 {
 
-	SE3 se3;
-	double scale;
+	public SE3 se3;
+	public double scale;
 	
 	/**
 	 * Default constructor, zero translation/rotation, scale 1.

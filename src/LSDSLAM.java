@@ -1241,7 +1241,6 @@ public class LSDSLAM {
 					keyFrameGraph.keyframesAll.get(i).pose.graphVertex.estimate());
 	
 			// add error
-			System.out.println(keyFrameGraph.keyframesAll.get(i).pose.graphVertex.id);
 			for(EdgeSim3 edge : keyFrameGraph.keyframesAll.get(i).pose.graphVertex.edges())
 			{
 				keyFrameGraph.keyframesAll.get(i).edgeErrorSum += edge.chi2();

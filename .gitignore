@@ -37,3 +37,12 @@ local.properties
 
 # TeXlipse plugin
 .texlipse
+images-g_1/
+images-g_0/
+images-table/
+images/
+images-box/
+result-dataset/
+*.xyz
+*.png
+*.ply
