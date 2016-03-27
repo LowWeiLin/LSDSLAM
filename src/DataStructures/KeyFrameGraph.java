@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import jeigen.DenseMatrix;
+import main.Sim3_graph_libraryLibrary;
 import LieAlgebra.SIM3;
 import Utils.Constants;
 import Utils.PQueue;
@@ -304,7 +305,7 @@ public class KeyFrameGraph {
 	public boolean addElementsFromBuffer()
 	{
 		boolean added = false;
-
+		
 		for (Frame newKF : newKeyframesBuffer)
 		{
 			graph.addVertex(newKF.pose.graphVertex);

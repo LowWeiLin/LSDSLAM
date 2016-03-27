@@ -2,6 +2,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
 
+import main.Sim3_graph_libraryLibrary;
+
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.highgui.Highgui;
@@ -103,6 +105,8 @@ public class SLAMWrapper {
 	public static void main(String[] args) {
 		// Load OpenCV native library.
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+		
+		Sim3_graph_libraryLibrary.clear();
 		
 		// Set Camera parameters
 		// My webcam

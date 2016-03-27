@@ -14,6 +14,8 @@ public class EdgeSim3 {
 	
 	public VertexSim3[] vertices;
 	
+	public float chi2;
+	
 	public void setId(int id) {
 		this.id = id;
 	}
@@ -41,7 +43,6 @@ public class EdgeSim3 {
 
 
 	public float chi2() {
-		// TODO Auto-generated method stub
-		return 0;
+		return chi2;
 	}
 }

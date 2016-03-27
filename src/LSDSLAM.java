@@ -898,6 +898,10 @@ public class LSDSLAM {
 						{ 0.0120, 0.1943,-0.0028,-0.0934, 0.0743, 0.4511, 0},
 						{ 0,0, 0.0304, 0.0005,-0.0028, 0, 0.0228}});
 				k.information = k.information.mul((1e9/(downweightFac*downweightFac)));
+				
+				// TODO:
+//				k.information = DenseMatrix.eye(7).mul(100000);
+//				k.information.set(6, 6, 0);
 
 				k.robustKernel = new g2o_RobustKernelHuber();
 				k.robustKernel.setDelta(kernelDelta);
@@ -1246,6 +1250,13 @@ public class LSDSLAM {
 				keyFrameGraph.keyframesAll.get(i).edgeErrorSum += edge.chi2();
 				keyFrameGraph.keyframesAll.get(i).edgesNum++;
 			}
+			
+			
+			// TODO:
+			// applyPoseGraphOptResult()
+			keyFrameGraph.keyframesAll.get(i).pose.applyPoseGraphOptResult();
+			
+			
 		}
 	
 		haveUnmergedOptimizationOffset = true;
