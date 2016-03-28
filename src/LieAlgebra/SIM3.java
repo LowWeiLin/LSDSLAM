@@ -93,7 +93,13 @@ public class SIM3 {
 	}
 	
 	public static SIM3 inverse(SIM3 sim3) {
-		SIM3 inverse = new SIM3(SE3.inverse(sim3.se3), 1./sim3.scale);
+		//SIM3 inverse = new SIM3(SE3.inverse(sim3.se3), 1./sim3.scale);
+		
+		SIM3 inverse = new SIM3();
+		inverse.se3.rotation = SO3.inverse(sim3.se3.rotation);
+		inverse.scale = 1.0/sim3.scale;
+		inverse.se3.translation = (inverse.getRotationMat().mmul(sim3.se3.translation)).mul(-inverse.scale);
+		
 		inverse.assertNotNaN();
 		return inverse;
 	}
