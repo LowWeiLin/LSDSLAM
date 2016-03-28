@@ -199,25 +199,25 @@ public class SIM3 {
 	    double eps = 1e-6;
 
 	    if(Math.abs(s) < eps && Math.abs(t) < eps){
-	        coeff[0] = 1 + s/2 + s*s/6;
-	        coeff[1] = 1/2 + s/3 - t*t/24 + s*s/8;
-	        coeff[2] = 1/6 + s/8 - t*t/120 + s*s/20;
+	        coeff[0] = 1.0 + s/2.0 + s*s/6.0;
+	        coeff[1] = 1.0/2.0 + s/3.0 - t*t/24.0 + s*s/8.0;
+	        coeff[2] = 1.0/6.0 + s/8.0 - t*t/120.0 + s*s/20.0;
 	    } else if(Math.abs(s) < eps) {
-	        coeff[0] = 1 + s/2 + s*s/6;
-	        coeff[1] = (1-Math.cos(t))/(t*t) + (Math.sin(t)-Math.cos(t)*t)*s/(t*t*t)+(2*Math.sin(t)*t-t*t*Math.cos(t)-2+2*Math.cos(t))*s*s/(2*t*t*t*t);
-	        coeff[2] = (t-Math.sin(t))/(t*t*t) - (-t*t-2+2*Math.cos(t)+2*Math.sin(t)*t)*s/(2*t*t*t*t) - (-t*t*t+6*Math.cos(t)*t+3*Math.sin(t)*t*t-6*Math.sin(t))*s*s/(6*t*t*t*t*t);
+	        coeff[0] = 1.0 + s/2.0 + s*s/6.0;
+	        coeff[1] = (1.0-Math.cos(t))/(t*t) + (Math.sin(t)-Math.cos(t)*t)*s/(t*t*t)+(2.0*Math.sin(t)*t-t*t*Math.cos(t)-2.0+2.0*Math.cos(t))*s*s/(2.0*t*t*t*t);
+	        coeff[2] = (t-Math.sin(t))/(t*t*t) - (-t*t-2.0+2.0*Math.cos(t)+2.0*Math.sin(t)*t)*s/(2.0*t*t*t*t) - (-t*t*t+6.0*Math.cos(t)*t+3.0*Math.sin(t)*t*t-6.0*Math.sin(t))*s*s/(6.0*t*t*t*t*t);
 	    } else if(Math.abs(t) < eps) {
-	        coeff[0] = (es - 1)/s;
-	        coeff[1] = (s*es+1-es)/(s*s) - (6*s*es+6-6*es+es*s*s*s-3*es*s*s)*t*t/(6*s*s*s*s);
-	        coeff[2] = (es*s*s-2*s*es+2*es-2)/(2*s*s*s) - (es*s*s*s*s-4*es*s*s*s+12*es*s*s-24*s*es+24*es-24)*t*t/(24*s*s*s*s*s);
+	        coeff[0] = (es - 1.0)/s;
+	        coeff[1] = (s*es+1.0-es)/(s*s) - (6.0*s*es+6.0-6.0*es+es*s*s*s-3.0*es*s*s)*t*t/(6.0*s*s*s*s);
+	        coeff[2] = (es*s*s-2.0*s*es+2.0*es-2.0)/(2.0*s*s*s) - (es*s*s*s*s-4.0*es*s*s*s+12.0*es*s*s-24.0*s*es+24.0*es-24.0)*t*t/(24.0*s*s*s*s*s);
 	    } else {
 	        double a = es * Math.sin(t);
 	        double b = es * Math.cos(t);
-	        double inv_s_theta = 1/(s*s + t*t);
+	        double inv_s_theta = 1.0/(s*s + t*t);
 
-	        coeff[0] = (es - 1)/s;
-	        coeff[1] = (a*s + (1-b)*t) * inv_s_theta / t;
-	        coeff[2] = (coeff[0] - ((b-1)*s + a*t) * inv_s_theta) / (t*t);
+	        coeff[0] = (es - 1.0)/s;
+	        coeff[1] = (a*s + (1.0-b)*t) * inv_s_theta / t;
+	        coeff[2] = (coeff[0] - ((b-1.0)*s + a*t) * inv_s_theta) / (t*t);
 	    }
 
 	    return coeff;
@@ -330,6 +330,7 @@ public class SIM3 {
 			FtoC = SIM3.exp(FtoC.ln());
 			System.out.println(Arrays.toString(SIM3.ln(FtoC)));
 		}
+		
 	}
 	
 }
