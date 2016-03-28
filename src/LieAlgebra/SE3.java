@@ -144,7 +144,12 @@ public class SE3 {
 	}
 	
 	public static SE3 inverse(SE3 se3) {
-		SE3 inverse = new SE3(SO3.inverse(se3.getRotation()), se3.translation.mul(-1));
+		//SE3 inverse = new SE3(SO3.inverse(se3.getRotation()), se3.translation.mul(-1));
+		
+		SE3 inverse = new SE3();
+		inverse.rotation = SO3.inverse(se3.rotation);
+		inverse.translation = (inverse.getRotationMat().mmul(se3.translation)).mul(-1);
+		
 		inverse.assertNotNaN();
 		return inverse;
 	}
