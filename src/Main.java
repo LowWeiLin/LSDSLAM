@@ -24,7 +24,7 @@ public class Main {
 		EventQueue.invokeLater(new Runnable() {
             public void run() {
                 try {
-                    DisplayJFrame frame = new DisplayJFrame();
+                    DisplayJFrame frame = new DisplayJFrame("Video stream");
                     frame.frameBuffer = capBuffer.frameRGBBuffer;
                     frame.setVisible(true);
                 } catch (Exception e) {

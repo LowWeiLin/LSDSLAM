@@ -19,6 +19,7 @@ import Utils.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
 /**
@@ -306,16 +307,15 @@ public class DepthMap {
 
 		// Frame tracked against activeKeyFrame?
 		if (refFrame.getTrackingParent() == activeKeyFrame) {
-			/*
-			 * //TODO: implement this boolean wasGoodDuringTracking =
-			 * refFrame.refPixelWasGoodNoCreate();
-			 * 
-			 * // Check if pixel is good during tracking?
-			 * if(wasGoodDuringTracking != false && !wasGoodDuringTracking[ (x
-			 * >> Constants.SE3TRACKING_MIN_LEVEL) + (width >>
-			 * Constants.SE3TRACKING_MIN_LEVEL)*(y >>
-			 * Constants.SE3TRACKING_MIN_LEVEL)]) { return false; }
-			 */
+			boolean[] wasGoodDuringTracking = refFrame.refPixelWasGoodNoCreate();
+			
+			// Check if pixel is good during tracking?
+			if(wasGoodDuringTracking != null && 
+					!wasGoodDuringTracking[(x >> Constants.SE3TRACKING_MIN_LEVEL)
+					                       + (width >> Constants.SE3TRACKING_MIN_LEVEL)
+					                       *(y >> Constants.SE3TRACKING_MIN_LEVEL)]) {
+				return false;
+			}
 		}
 
 		// Get epipolar line??
@@ -1213,7 +1213,8 @@ public class DepthMap {
 
 				// If blacklisted and surrounding has some number of valid
 				// pixels
-				if ((dest.blacklisted >= Constants.MIN_BLACKLIST && val > Constants.VAL_SUM_MIN_FOR_CREATE)
+				if ((dest.blacklisted >= Constants.MIN_BLACKLIST
+							&& val > Constants.VAL_SUM_MIN_FOR_CREATE)
 						|| val > Constants.VAL_SUM_MIN_FOR_UNBLACKLIST) {
 
 					// Calculate average idepth?
@@ -1277,9 +1278,8 @@ public class DepthMap {
 
 				// if isValid need to do better examination and then update.
 
-				// if(enablePrintDebugInfo && destRead->blacklisted <
-				// MIN_BLACKLIST)
-				// stats->num_reg_blacklisted++;
+				// if(enablePrintDebugInfo && destRead->blacklisted < MIN_BLACKLIST)
+				// 		stats->num_reg_blacklisted++;
 
 				if (!destRead.isValid)
 					continue;
@@ -1656,9 +1656,14 @@ public class DepthMap {
 		regularizeDepthMap(false, Constants.VAL_SUM_MIN_FOR_KEEP);
 	}
 	
-	
+	// For debugImageDepth
 	DisplayJFrame jframe = null;
 	LinkedList<Mat> frameRGBBuffer = new LinkedList<Mat>();
+	
+	// For gradient test
+	DisplayJFrame jframe2 = null;
+	LinkedList<Mat> frameRGBBuffer2 = new LinkedList<Mat>();
+	Mat gradTest = new Mat();
 	
 	public int debugPlotDepthMap() {
 		if(activeKeyFrame == null)
@@ -1666,19 +1671,18 @@ public class DepthMap {
 
 		Mat keyFrameImage = new Mat(activeKeyFrame.height(0),activeKeyFrame.width(0),
 				CvType.CV_32FC1);
-		
 		keyFrameImage.put(0, 0, activeKeyFrame.imageArrayLvl[0]);
-		
-		
 		keyFrameImage.convertTo(debugImageDepth, CvType.CV_8UC1);
-		
 		Imgproc.cvtColor(debugImageDepth, debugImageDepth, Imgproc.COLOR_GRAY2RGB);
+		
+		keyFrameImage.convertTo(gradTest, CvType.CV_8UC1);
+		Imgproc.cvtColor(gradTest, gradTest, Imgproc.COLOR_GRAY2RGB);
 
 		// debug plot & publish sparse version?
 		int refID = referenceFrameByID_offset;
 
-
-		for(int y=0;y<height;y++)
+		// Set color for debugImageDepth
+		for(int y=0;y<height;y++) {
 			for(int x=0;x<width;x++)
 			{
 				int idx = x + y*width;
@@ -1693,11 +1697,27 @@ public class DepthMap {
 				byte[] color = currentDepthMap[idx].getVisualizationColor(refID);
 				debugImageDepth.put(y, x, color);
 			}
+		}
+		
+		// Set color for gradTest
+		for(int y=0;y<height;y++) {
+			for(int x=0;x<width;x++)
+			{
+				int idx = x + y*width;
+				
+				if(activeKeyFrame.imageGradientMaxArrayLvl[0][idx] > Constants.MIN_ABS_GRAD_CREATE) {
+					gradTest.put(y, x, new byte[]{0,0,(byte) 255});
+				}
+			}
+		}
 		
 		
 		// Clear frame buffer and set new frame.
 		frameRGBBuffer.clear();
 		frameRGBBuffer.add(debugImageDepth);
+		
+		frameRGBBuffer2.clear();
+		frameRGBBuffer2.add(gradTest);
 
 		// Initialize jframe
 		if (jframe == null) {
@@ -1705,9 +1725,25 @@ public class DepthMap {
 			EventQueue.invokeLater(new Runnable() {
 	            public void run() {
 	                try {
-	                    jframe = new DisplayJFrame();
+	                    jframe = new DisplayJFrame("debugImageDepth");
 	                    jframe.frameBuffer = frameRGBBuffer;
 	                    jframe.setVisible(true);
+	                } catch (Exception e) {
+	                    e.printStackTrace();
+	                }
+	            }
+	        });
+		}
+		
+		// Initialize jframe
+		if (jframe2 == null) {
+			// Start JFrame to display raw frame data
+			EventQueue.invokeLater(new Runnable() {
+	            public void run() {
+	                try {
+	                    jframe2 = new DisplayJFrame("gradTest");
+	                    jframe2.frameBuffer = frameRGBBuffer2;
+	                    jframe2.setVisible(true);
 	                } catch (Exception e) {
 	                    e.printStackTrace();
 	                }

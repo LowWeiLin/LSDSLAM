@@ -27,7 +27,9 @@ public class DisplayJFrame extends JFrame implements KeyListener, WindowListener
 	/**
 	 * Create the frame.
 	 */
-	public DisplayJFrame() {
+	public DisplayJFrame(String title) {
+		
+		this.setTitle("JFrame: " + title);
 		
 		setBounds(100, 100, 650, 490);
 		contentPanel = new JPanel();
@@ -42,7 +44,6 @@ public class DisplayJFrame extends JFrame implements KeyListener, WindowListener
 		repaintThread.setDaemon(true);
 		repaintThread.start();
 	}
-
 
 	public void paint(Graphics g) {
 		g = contentPanel.getGraphics();

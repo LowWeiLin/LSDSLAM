@@ -42,6 +42,11 @@ public class KeyFrameDisplay {
 		double cxInv = Constants.cxInv[level];
 		double cyInv = Constants.cyInv[level];
 		
+
+		float my_scaledTH = Constants.scaledDepthVarTH;
+		float my_absTH = Constants.absDepthVarTH;
+		double my_scale = camToWorld.getScale();
+		
 		for (int x=1 ; x<width-1 ; x++) {
 			for (int y=1 ; y<height-1 ; y++) {
 				
@@ -52,13 +57,25 @@ public class KeyFrameDisplay {
 				float idepth = inverseDepth[idx];
 				float var = inverseDepthVariance[idx];
 
+				float depth = 1f / idepth;
+				float depth4 = depth*depth; depth4*= depth4;
+
 				// Skip if depth/variance is not valid
 				if(idepth == 0 || var <= 0) {
 					posData[idx] = null;
 					continue;
 				}
 				
-				float color = image[idx];
+				
+				// Only show points with variance below threshold.
+				if(var * depth4 > my_scaledTH)
+					continue;
+				if(var * depth4 * my_scale*my_scale > my_absTH)
+					continue;
+
+				
+				
+				float color = keyframe.id()*keyframe.id()*keyframe.id();//image[idx];
 				
 				// Set point, calculated from inverse depth
 				

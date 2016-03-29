@@ -49,7 +49,9 @@ public class Constants {
 
 	public static final int VAL_SUM_MIN_FOR_CREATE = 30; // minimal summed validity over 5x5 region to create a new hypothesis for non-blacklisted pixel (hole-filling)
 	public static final int VAL_SUM_MIN_FOR_KEEP = 24; // minimal summed validity over 5x5 region to keep hypothesis (regularization)
-	public static final int VAL_SUM_MIN_FOR_UNBLACKLIST = 100; // if summed validity surpasses this, a pixel is un-blacklisted.
+	
+	// TODO: default value is 100
+	public static final int VAL_SUM_MIN_FOR_UNBLACKLIST = 50; // if summed validity surpasses this, a pixel is un-blacklisted.
 
 	public static final int MIN_BLACKLIST = -1;	// if blacklist is SMALLER than this, pixel gets ignored. blacklist starts with 0.
 
@@ -114,7 +116,12 @@ public class Constants {
 	
 	
 	// For debugging
-	public static int debugDisplay = 3;
+	public static int debugDisplay = 2;
+
+	// log10 of threshold on point's variance, in the respective keyframe's scale. min: -10.0, default: -3.0, max: 1.0
+	public static float scaledDepthVarTH = (float) Math.pow(10, -3.0);
+	// log10 of threshold on point's variance, in absolute scale. min: -10.0, default: -1.0, max: 1.0
+	public static float absDepthVarTH = (float) Math.pow(10, -1.0);
 	
 	
 	// Camera matrix K
