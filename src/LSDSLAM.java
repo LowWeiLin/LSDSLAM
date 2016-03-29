@@ -124,6 +124,8 @@ public class LSDSLAM {
 			keyFrameGraph.idToKeyFrame.put(currentKeyFrame.id(), currentKeyFrame);
 		}
 		
+		debugDisplayDepthMap();
+		
 		System.out.println("Done random initialization.");
 	}
 
@@ -302,11 +304,18 @@ public class LSDSLAM {
 				// create new key frame
 				finishCurrentKeyframe();
 				changeKeyframe(false, true, 1.0f);
+				
+				// Display depth map!
+				debugDisplayDepthMap();
+				
 			} else {
 				System.out.println("doMappingIteration: update keyframe");
 				// ***Update key frame here***
 				boolean didSomething = updateKeyframe();
 
+				// Display depth map!
+				debugDisplayDepthMap();
+				
 				if(!didSomething) {
 					System.err.println("updateKeyFrame: false");
 					return false;
@@ -391,6 +400,10 @@ public class LSDSLAM {
 		return true;
 	}
 
+	void debugDisplayDepthMap() {
+		map.debugPlotDepthMap();
+	}
+	
 	void finishCurrentKeyframe()
 	{
 		System.out.println("FINALIZING KF: " + currentKeyFrame.id());
@@ -504,7 +517,7 @@ public class LSDSLAM {
 			
 			
 			// TODO: Should be here?
-			optimizationIteration(50, 0.001);
+			optimizationIteration(5, 0.001);
 		}
 		
 		
@@ -530,6 +543,7 @@ public class LSDSLAM {
 		System.out.println("findConstraintsForNewKeyFrames");
 		if(!newKeyFrame.hasTrackingParent())
 		{
+			// First key frame, does not have a parent. 
 			keyFrameGraph.addKeyFrame(newKeyFrame);
 			newConstraintAdded = true;
 			System.out.println("findConstraintsForNewKeyFrames - ret 0");
@@ -537,6 +551,8 @@ public class LSDSLAM {
 		}
 
 		
+		
+		// TODO: figure out what this is.
 		if(!forceParent && 
 				Vec.magnitude((newKeyFrame.lastConstraintTrackedCamToWorld.mul(
 						newKeyFrame.getScaledCamToWorld().inverse())).ln()) < 0.01) {
@@ -544,7 +560,7 @@ public class LSDSLAM {
 			return 0;
 		}
 
-
+		// Save last camToWorld pose
 		newKeyFrame.lastConstraintTrackedCamToWorld = newKeyFrame.getScaledCamToWorld();
 
 		
@@ -558,6 +574,7 @@ public class LSDSLAM {
 		System.out.println("trackableKeyFrameSearch.findCandidates - " + candidates.size());
 
 		// erase the ones that are already neighbours.
+		// Should not have any since it is a new keyframe.
 		for(Frame c : candidates)
 		{
 			if(newKeyFrame.neighbors.contains(c) == true)
@@ -567,6 +584,7 @@ public class LSDSLAM {
 			}
 		}
 
+		// Get initial estimate
 		for (Frame candidate : candidates)
 		{
 			SIM3 candidateToFrame_initialEstimate = newKeyFrame.getScaledCamToWorld().inverse().mul( 
@@ -576,6 +594,7 @@ public class LSDSLAM {
 			//System.out.println("candidateToFrame_initialEstimateMap " + candidateToFrame_initialEstimateMap.size());
 		}
 
+		// Get number of edges of each key frame to the new key frame
 		Map<Frame, Integer> distancesToNewKeyFrame = new HashMap<Frame, Integer>();
 		if(newKeyFrame.hasTrackingParent())
 			keyFrameGraph.calculateGraphDistancesToFrame(
@@ -612,6 +631,13 @@ public class LSDSLAM {
 			// TRACK SE3
 			constraintSE3Tracker.initialize(newKeyFrame.width(0), newKeyFrame.height(0));
 			SE3 c2f = constraintSE3Tracker.trackFrameOnPermaref(candidate, newKeyFrame, c2f_init);
+			
+			System.out.println("CONSTRAINT SE3: ");
+			System.out.println("newKF -> candidate : " + newKeyFrame.id() + " -> " + candidate.id());
+			System.out.println("c2f_init : " + Arrays.toString(c2f_init.ln()));
+			System.out.println("c2f : " + Arrays.toString(c2f.ln()));
+
+			
 			if(!constraintSE3Tracker.trackingWasGood) {
 				closeFailed++;
 				continue;
@@ -623,16 +649,26 @@ public class LSDSLAM {
 			f2c_init.rotation = disturbance;
 			
 			SE3 f2c = constraintSE3Tracker.trackFrameOnPermaref(newKeyFrame, candidate, f2c_init);
+			
+
+			System.out.println("CONSTRAINT SE3: ");
+			System.out.println("candidate -> newKF : " + candidate.id() + " -> " + newKeyFrame.id());
+			System.out.println("f2c_init : " + Arrays.toString(f2c_init.ln()));
+			System.out.println("f2c : " + Arrays.toString(f2c.ln()));
+			
 			if(!constraintSE3Tracker.trackingWasGood) {
+				System.out.println("CONSTRAINT SE3: closeFailed");
 				closeFailed++;
 				continue;
 			}
 
 			if(Vec.magnitude(f2c.rotation.mul(c2f.rotation).ln()) >= 0.09) {
+				System.out.println("CONSTRAINT SE3: closeInconsistent " + Vec.magnitude(f2c.rotation.mul(c2f.rotation).ln()));
 				closeInconsistent++;
 				continue;
 			}
 
+			System.out.println("Close candidate added: " + candidate.id());
 			closeCandidates.add(candidate);
 			
 		}
@@ -655,6 +691,8 @@ public class LSDSLAM {
 			if(distancesToNewKeyFrame.get(candidate) < 4)
 				continue;
 
+			// If close candidate fails, go to far candidate.
+			System.out.println("Far candidate added: " + candidate.id());
 			farCandidates.add(candidate);
 		}
 
@@ -758,6 +796,7 @@ public class LSDSLAM {
 				}
 			}
 
+			System.out.println("Close candidate removed: " + worst.id());
 			closeCandidates.remove(worst);
 		}
 
@@ -787,8 +826,10 @@ public class LSDSLAM {
 		newKFTrackingReference.importFrame(newKeyFrame);
 
 		// For all close candidates of newKeyFrame
+		System.out.println("findConstraintsForNewKeyFrames - Track close candidates!");
 		for (Frame candidate : closeCandidates)
 		{
+			System.out.println("findConstraintsForNewKeyFrames - Track close candidates! " + candidate.id());
 			KFConstraintStruct e1 = null;
 			KFConstraintStruct e2 = null;
 
@@ -827,8 +868,10 @@ public class LSDSLAM {
 		}
 
 		// Far candidates, (for loop closure?)
+		System.out.println("findConstraintsForNewKeyFrames - Track far candidates! ");
 		for (Frame candidate : farCandidates)
 		{
+			System.out.println("findConstraintsForNewKeyFrames - Track far candidates! " + candidate.id());
 			KFConstraintStruct e1 = null;
 			KFConstraintStruct e2 = null;
 
@@ -858,6 +901,7 @@ public class LSDSLAM {
 				System.out.println("Frame " + newKeyFrame.id());
 				System.out.println("Frame parent " + parent.id());
 			}
+			System.out.println("findConstraintsForNewKeyFrames - Track forced! " + newKeyFrame.id() + "->" + parent.id());
 			
 			KFConstraintStruct e1 = null;
 			KFConstraintStruct e2 = null;
@@ -880,7 +924,7 @@ public class LSDSLAM {
 			{
 				float downweightFac = 5;
 				float kernelDelta = (float) (5f * Math.sqrt(6000f*Constants.loopclosureStrictness) / downweightFac);
-				System.out.printf("warning: reciprocal tracking on new frame failed badly, added odometry edge (Hacky).\n");
+				System.out.printf("warning: reciprocal tracking on new frame failed badly, added odometry edge (Hacky). %d -> %d\n", parent.id(), newKeyFrame.id());
 
 				//poseConsistencyMutex.lock_shared();
 				
@@ -913,7 +957,7 @@ public class LSDSLAM {
 				
 				constraints.add(k);
 				
-				System.err.println("Constraint Found: " + k.firstFrame.id() + " - " + k.secondFrame.id());
+				System.err.println("Hacky constraint Found: " + k.firstFrame.id() + " - " + k.secondFrame.id());
 				if (k.firstFrame.pose.graphVertex != null)
 					System.err.println(k.firstFrame.id() + " - " + k.firstFrame.pose.graphVertex.id);
 				if (k.secondFrame.pose.graphVertex != null)
@@ -1025,6 +1069,9 @@ public class LSDSLAM {
 		e1_out = res_level1.e1;
 		e2_out = res_level1.e2;
 	
+
+		System.out.println("FtoC: " + Arrays.toString(FtoC.ln()));
+		System.out.println("CtoF: " + Arrays.toString(CtoF.ln()));
 		System.out.println("tryTrackSim3 err_level1: " + err_level3);
 
 		if(err_level1 > 6000*strictness)

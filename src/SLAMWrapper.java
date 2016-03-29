@@ -109,21 +109,12 @@ public class SLAMWrapper {
 		Sim3_graph_libraryLibrary.clear();
 		
 		// Set Camera parameters
-		// My webcam
-		//Constants.setK(748.000000, 748.000000, 319.000000, 239.000000);
 		
 		// LSDSLAM example
 		Constants.setK(254.327, 375.934, 266.882, 231.099);
 		
-		
-		// GoPro - studio undistort old
-		//Constants.setK(293.44402418, 393.75304703, 319.60465583, 252.00499988);
-		
 		// GoPro - studio undistort
 		//Constants.setK(291.55136695, 391.96175257, 316.61752775, 246.73475848);
-		
-		// GoPro - undistort twice
-		//Constants.setK(282.3554769, 282.37401685, 316.8959948, 245.18105368);
 		
 		
 		SLAMWrapper liveSlamWrapper = new SLAMWrapper();

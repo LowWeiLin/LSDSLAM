@@ -69,7 +69,7 @@ public class Frame {
 	public FramePoseStruct pose;
 	public int idxInKeyframes = -1;
 
-	public SIM3 lastConstraintTrackedCamToWorld;
+	public SIM3 lastConstraintTrackedCamToWorld = new SIM3();
 	/** Pointers to all adjacent Frames in graph. empty for non-keyframes.*/
 	public Set<Frame> neighbors = new HashSet<Frame>();
 		

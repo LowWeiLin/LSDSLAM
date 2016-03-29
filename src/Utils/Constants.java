@@ -113,6 +113,10 @@ public class Constants {
 	public static final float DIFF_FAC_INCONSISTENT = (1.0f * 1.0f);
 	
 	
+	// For debugging
+	public static int debugDisplay = 3;
+	
+	
 	// Camera matrix K
 	public static final jeigen.DenseMatrix[] K = new DenseMatrix[PYRAMID_LEVELS];
 	public static final double[] fx = new double[PYRAMID_LEVELS];

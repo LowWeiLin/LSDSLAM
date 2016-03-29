@@ -1,7 +1,9 @@
 package DepthEstimation;
 
+import java.awt.EventQueue;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
@@ -10,8 +12,14 @@ import DataStructures.Frame;
 import LieAlgebra.SE3;
 import LieAlgebra.SIM3;
 import LieAlgebra.Vec;
+import UI.DisplayJFrame;
 import Utils.Constants;
 import Utils.Utils;
+
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 
 /**
  * Keeps a detailed depth map (consisting of DepthMapPixelHypothesis) and does
@@ -66,6 +74,9 @@ public class DepthMap {
 	// Camera matrix
 	float fx, fy, cx, cy;
 	float fxi, fyi, cxi, cyi;
+	
+	
+	public Mat debugImageDepth = new Mat();
 
 	public DepthMap(int w, int h) {
 		width = w;
@@ -1643,6 +1654,68 @@ public class DepthMap {
 		}
 
 		regularizeDepthMap(false, Constants.VAL_SUM_MIN_FOR_KEEP);
+	}
+	
+	
+	DisplayJFrame jframe = null;
+	LinkedList<Mat> frameRGBBuffer = new LinkedList<Mat>();
+	
+	public int debugPlotDepthMap() {
+		if(activeKeyFrame == null)
+			return 1;
+
+		Mat keyFrameImage = new Mat(activeKeyFrame.height(0),activeKeyFrame.width(0),
+				CvType.CV_32FC1);
+		
+		keyFrameImage.put(0, 0, activeKeyFrame.imageArrayLvl[0]);
+		
+		
+		keyFrameImage.convertTo(debugImageDepth, CvType.CV_8UC1);
+		
+		Imgproc.cvtColor(debugImageDepth, debugImageDepth, Imgproc.COLOR_GRAY2RGB);
+
+		// debug plot & publish sparse version?
+		int refID = referenceFrameByID_offset;
+
+
+		for(int y=0;y<height;y++)
+			for(int x=0;x<width;x++)
+			{
+				int idx = x + y*width;
+				
+				if(currentDepthMap[idx].blacklisted < Constants.MIN_BLACKLIST && Constants.debugDisplay == 2) {
+					debugImageDepth.put(y, x, new byte[]{0,0,(byte) 255});
+				}
+
+				if(!currentDepthMap[idx].isValid)
+					continue;
+
+				byte[] color = currentDepthMap[idx].getVisualizationColor(refID);
+				debugImageDepth.put(y, x, color);
+			}
+		
+		
+		// Clear frame buffer and set new frame.
+		frameRGBBuffer.clear();
+		frameRGBBuffer.add(debugImageDepth);
+
+		// Initialize jframe
+		if (jframe == null) {
+			// Start JFrame to display raw frame data
+			EventQueue.invokeLater(new Runnable() {
+	            public void run() {
+	                try {
+	                    jframe = new DisplayJFrame();
+	                    jframe.frameBuffer = frameRGBBuffer;
+	                    jframe.setVisible(true);
+	                } catch (Exception e) {
+	                    e.printStackTrace();
+	                }
+	            }
+	        });
+		}
+
+		return 1;
 	}
 	
 	/*

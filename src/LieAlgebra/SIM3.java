@@ -321,10 +321,12 @@ public class SIM3 {
 	
 	public static void main(String[] args) {
 		
-		SIM3 FtoC = SIM3.exp(new double[]{0.0656, -0.1039, 0.0033, -0.0308, 0.0010, 0.0184, 0.0180}).inverse();
+		SIM3 FtoC = SIM3.exp(new double[]{-0.05822144838019558, 0.0756891620395333, -0.0022709761965872344, 0.019408896087920464, -8.390711786033482E-4, -0.017495055079029636, -0.01781943098865934}).inverse();
 		//SIM3 FtoC = SIM3.exp(new double[]{1,1,1,1,1,1,1}).inverse();
 		//SIM3 FtoC = new SIM3(new SE3(), 1);
 		
+
+		System.out.println(Arrays.toString(SIM3.ln(FtoC.mul(FtoC.inverse()))));
 		
 		
 		System.out.println(Arrays.toString(SIM3.ln(FtoC)));
@@ -332,8 +334,15 @@ public class SIM3 {
 		//FtoC = FtoC.inverse();
 		//System.out.println(Arrays.toString(SIM3.ln(FtoC)));
 		
-		for (int i=0 ; i<100 ; i++) {
-			FtoC = SIM3.exp(FtoC.ln());
+		
+//		for (int i=0 ; i<100 ; i++) {
+//			FtoC = SIM3.exp(FtoC.ln());
+//			System.out.println(Arrays.toString(SIM3.ln(FtoC)));
+//		}
+		
+
+		for (int i=0 ; i<1000 ; i++) {
+			FtoC = FtoC.inverse().inverse();
 			System.out.println(Arrays.toString(SIM3.ln(FtoC)));
 		}
 		

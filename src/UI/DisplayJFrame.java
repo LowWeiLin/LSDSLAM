@@ -47,7 +47,7 @@ public class DisplayJFrame extends JFrame implements KeyListener, WindowListener
 	public void paint(Graphics g) {
 		g = contentPanel.getGraphics();
 		
-		System.out.println(frameBuffer.size());
+		//System.out.println(frameBuffer.size());
 		
 		// Get buffered frame
 		Mat frame = frameBuffer.poll();

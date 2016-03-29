@@ -199,16 +199,41 @@ public class SE3 {
 		
 		double[] vec6 = new double[]{1,1,1,0.53,0,0};//{0.9257751770440343, 0.6696269810349835, 0.7949576278265412, 2.2639318115967644, 0.45278636231935293, 0.45278636231935293};//{1,1,1,0.5,0.1,0.1};
 		SE3 se3 = SE3.exp(vec6);
+
+//		// Test for ln/exp number drift
+//		for (int i=0 ; i<1000000 ; i++) {
+//			//System.out.println("rot mat = "+se3.rotation.matrix);
+//			//System.out.println("trans mat = "+se3.getTranslationMat());
+//			System.out.println("vec = " +Arrays.toString(SE3.ln(se3)));
+//			
+//			vec6 = SE3.ln(se3);
+//			se3 = SE3.exp(vec6);
+//			
+//		}
+
+		// Test for inverse number drift
+		vec6 = new double[]{-0.1687722544216055, -0.11161075918408007, -0.01406770893311903, -0.2680809945869649, 0.14390299341810078, 0.10327471107537695};//{1,1,1,0.5,0.1,0.1};
+		se3 = SE3.exp(vec6);
 		
-		// Test for number drift
-		for (int i=0 ; i<1000000 ; i++) {
+		// Inverse test
+		System.out.println("vec = " +Arrays.toString(SE3.ln(se3.mul(se3.inverse()))));
+		
+		
+		System.out.println("vec = " +Arrays.toString(SE3.ln(se3)));
+		for (int i=0 ; i<100 ; i++) {
 			//System.out.println("rot mat = "+se3.rotation.matrix);
 			//System.out.println("trans mat = "+se3.getTranslationMat());
+			
+			se3 = se3.inverse();
+			se3 = se3.inverse();
+			
 			System.out.println("vec = " +Arrays.toString(SE3.ln(se3)));
+			
 			
 			vec6 = SE3.ln(se3);
 			se3 = SE3.exp(vec6);
 			
 		}
+		
 	}
 }

@@ -143,14 +143,14 @@ public class SE3Tracker {
 			//}
 			
 			// TODO: Write point cloud to file
-			if (level == 1) {
-				try {
-					KeyFrameDisplay kfd = new KeyFrameDisplay(referenceFrame.keyframe);
-					kfd.writePointCloudToFile("KFpointCloud-"+frame.id()+"-"+level+".ply");
-				} catch (FileNotFoundException | UnsupportedEncodingException e) {
-					e.printStackTrace();
-				}
-			}
+//			if (level == 1) {
+//				try {
+//					KeyFrameDisplay kfd = new KeyFrameDisplay(referenceFrame.keyframe);
+//					kfd.writePointCloudToFile("KFpointCloud-"+frame.id()+"-"+level+".ply");
+//				} catch (FileNotFoundException | UnsupportedEncodingException e) {
+//					e.printStackTrace();
+//				}
+//			}
 			
 			calculateResidualAndBuffers(referenceFrame.posDataLvl[level],
 					referenceFrame.colorAndVarDataLvl[level],

@@ -1,5 +1,7 @@
 package DepthEstimation;
 
+import Utils.Constants;
+
 public class DepthMapPixelHypothesis {
 
 
@@ -75,82 +77,63 @@ public class DepthMapPixelHypothesis {
 	byte[] getVisualizationColor(int lastFrameID)
 	{
 		
-		float id;
-		id= idepth_smoothed;
-
-		if(id < 0)
-			return new byte[]{(byte) 255,(byte) 255,(byte) 255};
-
-		// rainbow between 0 and 4
-		float r = (float) ((0f-id) * 255f / 1.0f); if(r < 0) r = -r;
-		float g = (float) ((1f-id) * 255f / 1.0f); if(g < 0) g = -g;
-		float b = (float) ((2f-id) * 255f / 1.0f); if(b < 0) b = -b;
-
-		int rc = (int) (r < 0 ? 0 : (r > 255 ? 255 : r));
-		int gc = (int) (g < 0 ? 0 : (g > 255 ? 255 : g));
-		int bc = (int) (b < 0 ? 0 : (b > 255 ? 255 : b));
-
-		return new byte[]{(byte) (255-rc),(byte) (255-gc),(byte) (255-bc)};
-		/*
-		if(debugDisplay == 0 || debugDisplay == 1)
-		{
+		if(Constants.debugDisplay == 0 || Constants.debugDisplay == 1) {
+		
 			float id;
-			if(debugDisplay == 0)
-				id= idepth_smoothed;
-			else // if(debugDisplay == 1)
-				id= idepth;
+			id= idepth_smoothed;
 	
 			if(id < 0)
 				return new byte[]{(byte) 255,(byte) 255,(byte) 255};
 	
 			// rainbow between 0 and 4
-			float r = (0-id) * 255 / 1.0; if(r < 0) r = -r;
-			float g = (1-id) * 255 / 1.0; if(g < 0) g = -g;
-			float b = (2-id) * 255 / 1.0; if(b < 0) b = -b;
+			float r = (float) ((0f-id) * 255f / 1.0f); if(r < 0) r = -r;
+			float g = (float) ((1f-id) * 255f / 1.0f); if(g < 0) g = -g;
+			float b = (float) ((2f-id) * 255f / 1.0f); if(b < 0) b = -b;
 	
-			uchar rc = r < 0 ? 0 : (r > 255 ? 255 : r);
-			uchar gc = g < 0 ? 0 : (g > 255 ? 255 : g);
-			uchar bc = b < 0 ? 0 : (b > 255 ? 255 : b);
+			int rc = (int) (r < 0 ? 0 : (r > 255 ? 255 : r));
+			int gc = (int) (g < 0 ? 0 : (g > 255 ? 255 : g));
+			int bc = (int) (b < 0 ? 0 : (b > 255 ? 255 : b));
 	
-			return new byte[]{255-rc,255-gc,255-bc};
-		}
-	
+			return new byte[]{(byte) (255-rc),(byte) (255-gc),(byte) (255-bc)};
+		}		
+		
 		// plot validity counter
-		if(debugDisplay == 2)
+		if(Constants.debugDisplay == 2)
 		{
-			float f = validity_counter * (255.0 / (VALIDITY_COUNTER_MAX_VARIABLE+VALIDITY_COUNTER_MAX));
-			uchar v = f < 0 ? 0 : (f > 255 ? 255 : f);
-			return new byte[]{0,v,v};
+			float f = (float) (validity_counter * (255.0 / (Constants.VALIDITY_COUNTER_MAX_VARIABLE+
+					Constants.VALIDITY_COUNTER_MAX)));
+			byte v = (byte) (f < 0 ? 0 : (f > 255 ? 255 : f));
+			return new byte[]{0, v, v};
 		}
 	
 		// plot var
-		if(debugDisplay == 3 || debugDisplay == 4)
+		if(Constants.debugDisplay == 3 || Constants.debugDisplay == 4)
 		{
 			float idv;
-			if(debugDisplay == 3)
+			if(Constants.debugDisplay == 3)
 				idv= idepth_var_smoothed;
 			else
 				idv= idepth_var;
 	
-			float var = - 0.5 * log10(idv);
+			float var = (float) (- 0.5 * Math.log10(idv));
 	
-			var = var*255*0.333;
+			var = (float) (var*255*0.333);
 			if(var > 255) var = 255;
 			if(var < 0)
-				return new byte[]{0,0, 255};
+				return new byte[]{0,0, (byte) 255};
 	
-			return new byte[]{255-var,var, 0};// bw
+			return new byte[]{(byte) (255-var),(byte) var, 0};// bw
 		}
 	
 		// plot skip
-		if(debugDisplay == 5)
+		if(Constants.debugDisplay == 5)
 		{
-			float f = (nextStereoFrameMinID - lastFrameID) * (255.0 / 100);
-			uchar v = f < 0 ? 0 : (f > 255 ? 255 : f);
+			float f = (float) ((nextStereoFrameMinID - lastFrameID) * (255.0 / 100));
+			byte v = (byte) (f < 0 ? 0 : (f > 255 ? 255 : f));
 			return new byte[]{v,0,v};
 		}
-		*/
-		//return new byte[]{(byte) 255,(byte) 255,(byte) 255};
+		
+		return new byte[]{(byte) 255,(byte) 255,(byte) 255};
 	}
 	
 }
