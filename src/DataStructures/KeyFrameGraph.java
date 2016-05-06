@@ -73,7 +73,6 @@ public class KeyFrameGraph {
 	}
 	
 	public void addKeyFrame(Frame frame) {
-		System.err.println("Add keyframe " + frame.id);
 		if(frame.pose.graphVertex != null)
 			return;
 
@@ -108,14 +107,6 @@ public class KeyFrameGraph {
 		edge.setInformation(constraint.information);
 		edge.setRobustKernel(constraint.robustKernel);
 	
-		System.err.println("Constraint: " + constraint.firstFrame.id() + " - " + constraint.secondFrame.id());
-		
-		if (constraint.firstFrame.pose.graphVertex != null)
-			System.err.println(constraint.firstFrame.id() + " - " + constraint.firstFrame.pose.graphVertex.id);
-		if (constraint.secondFrame.pose.graphVertex != null)
-			System.err.println(constraint.secondFrame.id() + " - " + constraint.secondFrame.pose.graphVertex.id);
-		
-		
 		edge.resize(2);
 		assert(constraint.firstFrame.pose.graphVertex != null);
 		edge.setVertex(0, constraint.firstFrame.pose.graphVertex);

@@ -91,14 +91,6 @@ public class KeyFrameDisplay {
 							new double[][]{{color},
 											{var}});
 				
-				posData[idx] = new DenseMatrix(
-						new double[][]{{posData[idx].get(0, 0)},
-									   {posData[idx].get(1, 0)},
-									   {posData[idx].get(2, 0)},
-									   {color%255},
-									   {(color+255/2)%255},
-									   {(color+255/3)%255}});
-				
 			}
 		}
 		

@@ -174,21 +174,21 @@ public class LSDSLAM {
 			frameToReference_initialEstimate = new SE3();
 		}
 		
-		System.out.println("frameToReference_initialEstimate: " + Arrays.toString(SE3.ln(frameToReference_initialEstimate)));
-		System.out.println("trackingReferencePose.getCamToWorld().inverse().getSE3()" + 
-				Arrays.toString(SE3.ln(trackingReferencePose.getCamToWorld().inverse().getSE3())));
+		// System.out.println("frameToReference_initialEstimate: " + Arrays.toString(SE3.ln(frameToReference_initialEstimate)));
+		// System.out.println("trackingReferencePose.getCamToWorld().inverse().getSE3()" + 
+		// 		Arrays.toString(SE3.ln(trackingReferencePose.getCamToWorld().inverse().getSE3())));
 		
-		System.out.println("trackingReferencePose.getCamToWorld().inverse()" + 
-				trackingReferencePose.getCamToWorld().inverse().getScale());
-		System.out.println("keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)"
-				+ ".getCamToWorld()" + 
-						keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)
-												   .getCamToWorld().getScale());
+		// System.out.println("trackingReferencePose.getCamToWorld().inverse()" + 
+		// 		trackingReferencePose.getCamToWorld().inverse().getScale());
+		// System.out.println("keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)"
+		// 		+ ".getCamToWorld()" + 
+		// 				keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)
+		// 										   .getCamToWorld().getScale());
 		
-		System.out.println("keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1).getCamToWorld().getSE3()" + 
-				Arrays.toString(SE3.ln(
-						keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)
-												   .getCamToWorld().getSE3())));
+		// System.out.println("keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1).getCamToWorld().getSE3()" + 
+		// 		Arrays.toString(SE3.ln(
+		// 				keyFrameGraph.allFramePoses.get(keyFrameGraph.allFramePoses.size()-1)
+		// 										   .getCamToWorld().getSE3())));
 		
 		
 		SE3 newRefToFrame_poseUpdate = tracker.trackFrame(
@@ -540,13 +540,11 @@ public class LSDSLAM {
 	
 	int findConstraintsForNewKeyFrames(Frame newKeyFrame, boolean forceParent, float closeCandidatesTH)
 	{
-		System.out.println("findConstraintsForNewKeyFrames");
 		if(!newKeyFrame.hasTrackingParent())
 		{
 			// First key frame, does not have a parent. 
 			keyFrameGraph.addKeyFrame(newKeyFrame);
 			newConstraintAdded = true;
-			System.out.println("findConstraintsForNewKeyFrames - ret 0");
 			return 0;
 		}
 
@@ -556,7 +554,6 @@ public class LSDSLAM {
 		if(!forceParent && 
 				Vec.magnitude((newKeyFrame.lastConstraintTrackedCamToWorld.mul(
 						newKeyFrame.getScaledCamToWorld().inverse())).ln()) < 0.01) {
-			System.out.println("findConstraintsForNewKeyFrames - 515");
 			return 0;
 		}
 
@@ -564,14 +561,12 @@ public class LSDSLAM {
 		newKeyFrame.lastConstraintTrackedCamToWorld = newKeyFrame.getScaledCamToWorld();
 
 		
-		System.out.println("findConstraintsForNewKeyFrames - get all potential candidates and their initial relative pose.");
 		// =============== get all potential candidates and their initial relative pose. =================
 		List<KFConstraintStruct> constraints = new ArrayList<KFConstraintStruct>();
 		//Frame fabMapResult = null;
 		Set<Frame> candidates = trackableKeyFrameSearch.findCandidates(newKeyFrame, closeCandidatesTH);
 		Map<Frame, SIM3> candidateToFrame_initialEstimateMap = new HashMap<Frame, SIM3>();
 		
-		System.out.println("trackableKeyFrameSearch.findCandidates - " + candidates.size());
 
 		// erase the ones that are already neighbours.
 		// Should not have any since it is a new keyframe.
@@ -579,7 +574,7 @@ public class LSDSLAM {
 		{
 			if(newKeyFrame.neighbors.contains(c) == true)
 			{
-				System.out.printf("SKIPPING %d on %d cause it already exists as constraint.\n", c.id(), newKeyFrame.id());
+				//System.out.printf("SKIPPING %d on %d cause it already exists as constraint.\n", c.id(), newKeyFrame.id());
 				candidates.remove(c);
 			}
 		}
@@ -601,7 +596,6 @@ public class LSDSLAM {
 					newKeyFrame.getTrackingParent(), distancesToNewKeyFrame);
 
 
-		System.out.println("findConstraintsForNewKeyFrames - distinguish between close and far candidates in Graph");
 		// =============== distinguish between close and "far" candidates in Graph =================
 		// Do a first check on trackability of close candidates.
 		Set<Frame> closeCandidates = new HashSet<Frame>();
@@ -632,11 +626,6 @@ public class LSDSLAM {
 			constraintSE3Tracker.initialize(newKeyFrame.width(0), newKeyFrame.height(0));
 			SE3 c2f = constraintSE3Tracker.trackFrameOnPermaref(candidate, newKeyFrame, c2f_init);
 			
-			System.out.println("CONSTRAINT SE3: ");
-			System.out.println("newKF -> candidate : " + newKeyFrame.id() + " -> " + candidate.id());
-			System.out.println("c2f_init : " + Arrays.toString(c2f_init.ln()));
-			System.out.println("c2f : " + Arrays.toString(c2f.ln()));
-
 			
 			if(!constraintSE3Tracker.trackingWasGood) {
 				closeFailed++;
@@ -651,26 +640,17 @@ public class LSDSLAM {
 			SE3 f2c = constraintSE3Tracker.trackFrameOnPermaref(newKeyFrame, candidate, f2c_init);
 			
 
-			System.out.println("CONSTRAINT SE3: ");
-			System.out.println("candidate -> newKF : " + candidate.id() + " -> " + newKeyFrame.id());
-			System.out.println("f2c_init : " + Arrays.toString(f2c_init.ln()));
-			System.out.println("f2c : " + Arrays.toString(f2c.ln()));
-			
 			if(!constraintSE3Tracker.trackingWasGood) {
-				System.out.println("CONSTRAINT SE3: closeFailed");
 				closeFailed++;
 				continue;
 			}
 
 			if(Vec.magnitude(f2c.rotation.mul(c2f.rotation).ln()) >= 0.09) {
-				System.out.println("CONSTRAINT SE3: closeInconsistent " + Vec.magnitude(f2c.rotation.mul(c2f.rotation).ln()));
 				closeInconsistent++;
 				continue;
 			}
 
-			System.out.println("Close candidate added: " + candidate.id());
 			closeCandidates.add(candidate);
-			
 		}
 
 
@@ -796,7 +776,6 @@ public class LSDSLAM {
 				}
 			}
 
-			System.out.println("Close candidate removed: " + worst.id());
 			closeCandidates.remove(worst);
 		}
 
@@ -820,16 +799,13 @@ public class LSDSLAM {
 
 
 		// =============== TRACK! ===============
-		System.out.println("findConstraintsForNewKeyFrames - Track!");
 		
 		// make tracking reference for newKeyFrame.
 		newKFTrackingReference.importFrame(newKeyFrame);
 
 		// For all close candidates of newKeyFrame
-		System.out.println("findConstraintsForNewKeyFrames - Track close candidates!");
 		for (Frame candidate : closeCandidates)
 		{
-			System.out.println("findConstraintsForNewKeyFrames - Track close candidates! " + candidate.id());
 			KFConstraintStruct e1 = null;
 			KFConstraintStruct e2 = null;
 
@@ -868,10 +844,8 @@ public class LSDSLAM {
 		}
 
 		// Far candidates, (for loop closure?)
-		System.out.println("findConstraintsForNewKeyFrames - Track far candidates! ");
 		for (Frame candidate : farCandidates)
 		{
-			System.out.println("findConstraintsForNewKeyFrames - Track far candidates! " + candidate.id());
 			KFConstraintStruct e1 = null;
 			KFConstraintStruct e2 = null;
 
@@ -896,12 +870,6 @@ public class LSDSLAM {
 
 		if(parent != null && forceParent)
 		{
-			if (candidateToFrame_initialEstimateMap.get(parent) == null) {
-				System.out.println("candidateToFrame_initialEstimateMap.get(parent) == null");
-				System.out.println("Frame " + newKeyFrame.id());
-				System.out.println("Frame parent " + parent.id());
-			}
-			System.out.println("findConstraintsForNewKeyFrames - Track forced! " + newKeyFrame.id() + "->" + parent.id());
 			
 			KFConstraintStruct e1 = null;
 			KFConstraintStruct e2 = null;
@@ -912,9 +880,6 @@ public class LSDSLAM {
 			e1 = result[0];
 			e2 = result[1];
 			
-//			if(enablePrintDebugInfo && printConstraintSearchInfo)
-//				printf(" PARENT (0)\n");
-
 			if(e1 != null)
 			{
 				constraints.add(e1);
@@ -1014,8 +979,7 @@ public class LSDSLAM {
 		FtoC = res_level3.AtoB;
 		CtoF = res_level3.BtoA;
 		
-		System.out.println("tryTrackSim3 err_level3: " + err_level3);
-
+		
 		if(err_level3 > 3000*strictness)
 		{
 //			if(enablePrintDebugInfo && printConstraintSearchInfo)
@@ -1040,16 +1004,9 @@ public class LSDSLAM {
 		FtoC = res_level2.AtoB;
 		CtoF = res_level2.BtoA;
 
-		System.out.println("tryTrackSim3 err_level2: " + err_level2);
 		
 		if(err_level2 > 4000*strictness)
 		{
-//			if(enablePrintDebugInfo && printConstraintSearchInfo)
-//				printf("FAILE %d -> %d (lvl %d): errs (%.1f / %.1f / -).",
-//					newKFTrackingReference->frameID, candidateTrackingReference->frameID,
-//					2,
-//					sqrtf(err_level3), sqrtf(err_level2));
-
 			e1_out = e2_out = null;
 			newKFTrackingReference.keyframe.trackingFailed.putElement(
 					candidate, candidateToFrame_initialEstimate);
@@ -1069,32 +1026,13 @@ public class LSDSLAM {
 		e1_out = res_level1.e1;
 		e2_out = res_level1.e2;
 	
-
-		System.out.println("FtoC: " + Arrays.toString(FtoC.ln()));
-		System.out.println("CtoF: " + Arrays.toString(CtoF.ln()));
-		System.out.println("tryTrackSim3 err_level1: " + err_level3);
-
 		if(err_level1 > 6000*strictness)
 		{
-//			if(enablePrintDebugInfo && printConstraintSearchInfo)
-//				printf("FAILE %d -> %d (lvl %d): errs (%.1f / %.1f / %.1f).",
-//						newKFTrackingReference->frameID, candidateTrackingReference->frameID,
-//						1,
-//						sqrtf(err_level3), sqrtf(err_level2), sqrtf(err_level1));
-
-//			delete e1_out;
-//			delete e2_out;
 			e1_out = e2_out = null;
 			newKFTrackingReference.keyframe.trackingFailed.putElement(
 					candidate, candidateToFrame_initialEstimate);
 			return new KFConstraintStruct[] {e1_out, e2_out};
 		}
-
-
-//		if(enablePrintDebugInfo && printConstraintSearchInfo)
-//			printf("ADDED %d -> %d: errs (%.1f / %.1f / %.1f).",
-//				newKFTrackingReference->frameID, candidateTrackingReference->frameID,
-//				sqrtf(err_level3), sqrtf(err_level2), sqrtf(err_level1));
 
 
 		float kernelDelta = (float) (5f * Math.sqrt(6000f*Constants.loopclosureStrictness));
@@ -1142,9 +1080,6 @@ public class LSDSLAM {
 		assert(B != null);
 		assert(constraintTracker != null);
 		
-		System.out.println("tryTrackSim3 " + A.keyframe.id() + " - " + B.keyframe.id());
-		System.out.println("AtoB: " + Arrays.toString(AtoB.ln()));
-		
 		BtoA = constraintTracker.trackFrameSim3(
 				A,
 				B.keyframe,
@@ -1163,16 +1098,6 @@ public class LSDSLAM {
 			BtoAInfo.get(0,0) == 0 ||
 			BtoAInfo.get(6,6) == 0)
 		{
-			System.err.println("tryTrackSim3 fail 1");
-			System.err.println("constraintTracker.diverged: " + constraintTracker.diverged);
-			System.err.println("BtoA.getScale(): " + BtoA.getScale());
-			System.err.println("BtoA.getScale(): " + BtoA.getScale());
-			System.err.println("BtoAInfo.get(0,0): " + BtoAInfo.get(0,0));
-
-			System.err.println("BtoAInfo.shape: " + BtoAInfo.rows + ", " + BtoAInfo.cols);
-			
-			System.err.println("BtoAInfo.get(6,6): " + BtoAInfo.get(6,6));
-			
 			
 			return new TryTrackSim3Result((float) 1e20, AtoB, BtoA, e1, e2);
 		}
@@ -1197,12 +1122,6 @@ public class LSDSLAM {
 			AtoBInfo.get(6,6) == 0)
 		{
 
-			System.err.println("tryTrackSim3 fail 2");
-			System.err.println("constraintTracker.diverged: " + constraintTracker.diverged);
-			System.err.println("AtoB.getScale(): " + AtoB.getScale());
-			System.err.println("AtoB.getScale(): " + AtoB.getScale());
-			System.err.println("AtoBInfo.get(0,0): " + AtoBInfo.get(0,0));
-			System.err.println("AtoBInfo.get(6,6): " + AtoBInfo.get(6,6));
 			return new TryTrackSim3Result((float) 1e20, AtoB, BtoA, e1, e2);
 		}
 
@@ -1308,8 +1227,8 @@ public class LSDSLAM {
 	
 		haveUnmergedOptimizationOffset = true;
 	
-		System.out.printf("did %d optimization iterations. Max Pose Parameter Change: %f; avgChange: %f. %s\n", its, maxChange, sumChange / sum,
-				maxChange > minChange && its == itsPerTry ? "continue optimizing":"Waiting for addition to graph.");
+		// System.out.printf("did %d optimization iterations. Max Pose Parameter Change: %f; avgChange: %f. %s\n", its, maxChange, sumChange / sum,
+		// 		maxChange > minChange && its == itsPerTry ? "continue optimizing":"Waiting for addition to graph.");
 	
 		return maxChange > minChange && its == itsPerTry;
 	}

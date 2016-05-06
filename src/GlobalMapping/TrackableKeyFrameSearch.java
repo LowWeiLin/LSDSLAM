@@ -130,7 +130,7 @@ public class TrackableKeyFrameSearch {
 			distFacReciprocal = (float) (frame.meanIdepth / frame.getScaledCamToWorld().getScale());
 	
 		// for each frame, calculate the rough score, consisting of pose, scale and angle overlap.
-		System.out.println("findEuclideanOverlapFrames looking through all " + graph.keyframesAll.size());
+		//System.out.println("findEuclideanOverlapFrames looking through all " + graph.keyframesAll.size());
 		for(int i=0;i<graph.keyframesAll.size();i++)
 		{
 			DenseMatrix otherPos = graph.keyframesAll.get(i).getScaledCamToWorld().getTranslationMat();
@@ -142,14 +142,14 @@ public class TrackableKeyFrameSearch {
 			DenseMatrix dist = (pos.sub(otherPos)).mul(distFac);
 			float dNorm2 = (float) dist.mmul(dist.t()).get(0, 0);
 			if(dNorm2 > distanceTH) {
-				System.err.println("dNorm2 > distanceTH, " + dNorm2 +">"+ distanceTH);
+				//System.err.println("dNorm2 > distanceTH, " + dNorm2 +">"+ distanceTH);
 				continue;
 			}
 	
 			DenseMatrix otherViewingDir = graph.keyframesAll.get(i).getScaledCamToWorld().getRotationMat().row(1);
 			float dirDotProd = (float) otherViewingDir.mmul(viewingDir.t()).get(0, 0);
 			if(dirDotProd < cosAngleTH) {
-				System.err.println("dirDotProd < cosAngleTH, " + dirDotProd +">"+ cosAngleTH);
+				//System.err.println("dirDotProd < cosAngleTH, " + dirDotProd +">"+ cosAngleTH);
 				continue;
 			}
 	
@@ -175,7 +175,7 @@ public class TrackableKeyFrameSearch {
 	            findEuclideanOverlapFrames(keyframe, closenessTH * 15 / (KFDistWeight*KFDistWeight),
 	            		1.0f - 0.25f * closenessTH, true);
 		
-		System.out.println("findEuclideanOverlapFrames - " + potentialReferenceFrames.size());
+		//System.out.println("findEuclideanOverlapFrames - " + potentialReferenceFrames.size());
 		
 	    for(int i=0;i<potentialReferenceFrames.size();i++)
 			results.add(potentialReferenceFrames.get(i).ref);

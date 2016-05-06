@@ -165,7 +165,6 @@ public class DepthMap {
 				}
 			}
 		}
-		System.out.println("Good grad: " + goodGrad);
 		// Set depth hypothesis depth values to keyframe
 		activeKeyFrame.setDepth(currentDepthMap);
 	}
@@ -185,8 +184,6 @@ public class DepthMap {
 
 		// For each frame
 		for (Frame frame : referenceFrames) {
-			//System.out.println("Updating keyframe " + activeKeyFrame.id() + " with " + frame.id() + ".");
-			
 			// Do not update keyframe with own frame.
 			if (frame.id() == activeKeyFrame.id()) {
 				continue;
@@ -1419,14 +1416,7 @@ public class DepthMap {
 			currentDepthMap[i].idepth_var_smoothed *= rescaleFactor2;
 		}
 		activeKeyFrame.pose.thisToParent_raw = new SIM3(
-				SE3.inverse(oldToNew_SE3), rescaleFactor);
-		
-
-		/*
-		System.out.println("createKeyFrame: thisToParent_raw: " + activeKeyFrame.pose.thisToParent_raw.toString());
-
-		System.out.println("rescaleFactor: " + rescaleFactor);
-		*/
+				SE3.inverse(oldToNew_SE3), rescaleFactor);	
 		
 		
 		activeKeyFrame.pose.invalidateCache();

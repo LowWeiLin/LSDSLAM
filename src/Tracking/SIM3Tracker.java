@@ -153,8 +153,6 @@ public class SIM3Tracker {
 		
 		diverged = false;
 	
-		System.out.println("trackFrameSim3 init: " + Arrays.toString(frameToReference_initialEstimate.ln()));
-	
 		// ============ track frame ============
 	    SIM3 referenceToFrame = frameToReference_initialEstimate.inverse();
 		LGS7 ls7 = new LGS7();
@@ -207,8 +205,6 @@ public class SIM3Tracker {
 			warp_update_up_to_date = false;
 			for(int iteration=0; iteration < maxItsPerLvl[lvl]; iteration++)
 			{
-				System.out.println("----- iteration: " + iteration + " -----");
-	
 				// calculate LS System, result is saved in ls.
 				calcSim3LGS(ls7);
 				warp_update_up_to_date = true;
@@ -224,9 +220,6 @@ public class SIM3Tracker {
 					DenseMatrix b = ls7.b.div(-ls7.num_constraints);//7x1
 					DenseMatrix A = ls7.A.div(ls7.num_constraints);//7x7
 					
-					System.out.println("A " + ls7.A);
-					System.out.println("b " + ls7.b);
-					System.out.println("nc " + ls7.num_constraints);
 					
 					for(int i=0;i<7;i++)
 						 A.set(i, i, A.get(i,i) * (1+LM_lambda));
@@ -237,7 +230,6 @@ public class SIM3Tracker {
 
 					double[] incVec = Vec.vec7ToArray(inc);
 					
-					System.out.println("incVec: " + Arrays.toString(incVec));
 					
 					float absInc = (float) Vec.dot(incVec, incVec);
 					if(!(absInc >= 0 && absInc < 1))
@@ -277,25 +269,6 @@ public class SIM3Tracker {
 						referenceToFrame = new_referenceToFrame;
 						warp_update_up_to_date = false;
 	
-						/*
-						if(useAffineLightningEstimation)
-						{
-							affineEstimation_a = affineEstimation_a_lastIt;
-							affineEstimation_b = affineEstimation_b_lastIt;
-						}*/
-	
-						/*
-						if(enablePrintDebugInfo && printTrackingIterationInfo)
-						{
-							// debug output
-							printf("(%d-%d): ACCEPTED increment of %f with lambda %.1f, residual: %f -> %f\n",
-									lvl,iteration, sqrt(inc.dot(inc)), LM_lambda, lastErr.mean, error.mean);
-	
-							printf("         p=%.4f %.4f %.4f %.4f %.4f %.4f %.4f\n",
-									referenceToFrame.log()[0],referenceToFrame.log()[1],referenceToFrame.log()[2],
-									referenceToFrame.log()[3],referenceToFrame.log()[4],referenceToFrame.log()[5],
-									referenceToFrame.log()[6]);
-						}*/
 	
 						// converged?
 						if(error.mean / lastErr.mean > convergenceEps[lvl])
@@ -320,23 +293,11 @@ public class SIM3Tracker {
 					}
 					else
 					{
-						/*
-						if(enablePrintDebugInfo && printTrackingIterationInfo)
-						{
-							printf("(%d-%d): REJECTED increment of %f with lambda %.1f, (residual: %f -> %f)\n",
-									lvl,iteration, sqrt(inc.dot(inc)), LM_lambda, lastErr.mean, error.mean);
-						}*/
 
 						incVec = Vec.vec7ToArray(inc);
 						double incVecDot = Vec.dot(incVec, incVec);
 						if(!(incVecDot > stepSizeMin[lvl]))
 						{
-							/*
-							if(enablePrintDebugInfo && printTrackingIterationInfo)
-							{
-								printf("(%d-%d): FINISHED pyramid level (stepsize too small).\n",
-										lvl,iteration);
-							}*/
 							iteration = maxItsPerLvl[lvl];
 							break;
 						}
@@ -349,35 +310,6 @@ public class SIM3Tracker {
 				}
 			}
 		}
-	
-	
-	
-		/*
-		if(enablePrintDebugInfo && printTrackingIterationInfo)
-		{
-			printf("Tracking: ");
-				for(int lvl=PYRAMID_LEVELS-1;lvl >= 0;lvl--)
-				{
-					printf("lvl %d: %d (%d); ",
-						lvl,
-						numCalcResidualCalls[lvl],
-						numCalcWarpUpdateCalls[lvl]);
-				}
-	
-			printf("\n");
-	
-	
-			printf("pOld = %.5f %.5f %.5f %.5f %.5f %.5f %.5f\n",
-					frameToReference_initialEstimate.inverse().log()[0],frameToReference_initialEstimate.inverse().log()[1],frameToReference_initialEstimate.inverse().log()[2],
-					frameToReference_initialEstimate.inverse().log()[3],frameToReference_initialEstimate.inverse().log()[4],frameToReference_initialEstimate.inverse().log()[5],
-					frameToReference_initialEstimate.inverse().log()[6]);
-			printf("pNew = %.5f %.5f %.5f %.5f %.5f %.5f %.5f\n",
-					referenceToFrame.log()[0],referenceToFrame.log()[1],referenceToFrame.log()[2],
-					referenceToFrame.log()[3],referenceToFrame.log()[4],referenceToFrame.log()[5],
-					referenceToFrame.log()[6]);
-			printf("final res mean: %f meanD %f, meanP %f\n", finalResidual.mean, finalResidual.meanD, finalResidual.meanP);
-		}
-		*/
 	
 	
 		// Make sure that there is a warp update at the final position to get the correct information matrix
@@ -403,9 +335,6 @@ public class SIM3Tracker {
 		lastDepthResidual = finalResidual.meanD;
 		lastPhotometricResidual = finalResidual.meanP;
 	
-		System.out.println("TrackFrameSim3 referenceToFrame: " + startLevel + ", " + finalLevel);
-		System.out.println("TrackFrameSim3 referenceToFrame: " + reference.keyframe.id() + " -> " + frame.id());
-		System.out.println("TrackFrameSim3 referenceToFrame: " + Arrays.toString(referenceToFrame.ln()));
 		return referenceToFrame.inverse();
 	}
 	
@@ -416,24 +345,6 @@ public class SIM3Tracker {
 			SIM3 referenceToFrame,
 			int level)
 	{
-		/*
-		if(plotSim3TrackingIterationInfo)
-		{
-			cv::Vec3b col = cv::Vec3b(255,170,168);
-			fillCvMat(&debugImageResiduals,col);
-			fillCvMat(&debugImageOldImageSource,col);
-			fillCvMat(&debugImageOldImageWarped,col);
-			fillCvMat(&debugImageDepthResiduals,col);
-		}
-		if(plotWeights && plotSim3TrackingIterationInfo)
-		{
-			cv::Vec3b col = cv::Vec3b(255,170,168);
-			fillCvMat(&debugImageHuberWeight,col);
-			fillCvMat(&debugImageWeightD,col);
-			fillCvMat(&debugImageWeightP,col);
-			fillCvMat(&debugImageWeightedResP,col);
-			fillCvMat(&debugImageWeightedResD,col);
-		}*/
 	
 		// get static values
 		int w = frame.width(level);
@@ -492,11 +403,6 @@ public class SIM3Tracker {
 		
 		// TODO: REMOVE
 		float sumResidual = 0;
-		
-		System.out.println("rotMat: " + rotMat.toString());
-		System.out.println("transVec: " + transVec.toString());
-		
-		System.out.println("level " + level);
 		
 		for(int i=0 ; i<refPoint.length ; i++) {
 			
@@ -626,26 +532,6 @@ public class SIM3Tracker {
 		//affineEstimation_a_lastIt = sqrtf((syy - sy*sy/sw) / (sxx - sx*sx/sw));
 		//affineEstimation_b_lastIt = (sy - affineEstimation_a_lastIt*sx)/sw;
 		
-		System.out.println("SUMRESIDUAL " + sumResidual);
-		System.out.println("numValid " + numValidPoints);
-		System.out.println("usageCount " + usageCount);
-		
-		
-		/*
-		if(plotSim3TrackingIterationInfo)
-		{
-			Util::displayImage( "P Residuals", debugImageResiduals );
-			Util::displayImage( "D Residuals", debugImageDepthResiduals );
-	
-			if(plotWeights)
-			{
-				Util::displayImage( "Huber Weights", debugImageHuberWeight );
-				Util::displayImage( "DV Weights", debugImageWeightD );
-				Util::displayImage( "IV Weights", debugImageWeightP );
-				Util::displayImage( "WP Res", debugImageWeightedResP );
-				Util::displayImage( "WD Res", debugImageWeightedResD );
-			}
-		}*/
 	
 	}
 
@@ -765,34 +651,6 @@ public class SIM3Tracker {
 		sumRes.meanD = (sumRes.sumResD) / (sumRes.numTermsD);
 		sumRes.meanP = (sumRes.sumResP) / (sumRes.numTermsP);
 
-		System.out.println("sumRes " + sumRes.mean + ", " + sumRes.meanD + ", " + sumRes.meanP
-				 			+ ", " + sumRes.numTermsD + ", " + sumRes.numTermsP
-				 			 + ", " + sumRes.sumResD + ", " + sumRes.sumResP);
-		
-		System.out.println("sums "+ sumpx + " " +
-									sumpy + " " +
-									sumpz + " " +
-									sumd  + " " +
-									sumrp + " " +
-									sumrd + " " +
-									sumgx + " " +
-									sumgy + " " +
-									sums  + " " +
-									sumsv + " " );
-
-		
-		/*
-		if(plotSim3TrackingIterationInfo)
-		{
-			printf("rd %f, rp %f, wrd %f, wrp %f, wd %f, wp %f\n ",
-					sum_rd/sum_num_d,
-					sum_rp/sum_num_p,
-					sum_wrd/sum_num_d,
-					sum_wrp/sum_num_p,
-					sum_wd/sum_num_d,
-					sum_wp/sum_num_p);
-		}
-		*/
 		return sumRes;
 	}
 	
@@ -862,15 +720,6 @@ public class SIM3Tracker {
 		//ls4.finishNoDivide();
 		//ls6.finishNoDivide();
 
-		System.out.println("ls4.A " + ls4.A);
-		System.out.println("ls4.b " + ls4.b);
-		System.out.println("ls4.nc " + ls4.num_constraints);
-		System.out.println("ls4.error " + ls4.error);
-		
-		System.out.println("ls6.A " + ls6.A);
-		System.out.println("ls6.b " + ls6.b);
-		System.out.println("ls6.nc " + ls6.numConstraints);
-		System.out.println("ls6.error " + ls6.error);
 		
 		ls7.initializeFrom(ls6, ls4);
 

@@ -204,7 +204,6 @@ public class SE3Tracker {
 					if(warpedCount < Constants.MIN_GOODPERALL_PIXEL_ABSMIN * frame.width(level)*frame.height(level)) {
 						// Diverge
 						System.out.println("Diverged.(2)");
-						System.out.println("warpedCount: " + warpedCount);
 						diverged = true;
 						trackingWasGood = false;
 						return null;
@@ -432,14 +431,6 @@ public class SE3Tracker {
 		lastGoodCount = goodCount;
 		lastBadCount = badCount;
 		lastMeanRes = sumSignedRes / goodCount;
-		
-//		System.out.println("calcResidualAndBuffers lvl"+ level);
-//		System.out.println("inImage " + inImage);
-//		System.out.println("numValid " + numValidPoints);
-//		System.out.println("calcResidualAndBuffers sumUnweighted " + sumResUnweighted);
-//		System.out.println("calcResidualAndBuffers good " + goodCount);
-//
-//		System.out.println("calcResidualAndBuffers " + sumResUnweighted / goodCount);
 		
 		return sumResUnweighted / goodCount;
 	}

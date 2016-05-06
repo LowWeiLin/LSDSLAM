@@ -34,7 +34,7 @@ public class g2o_SparseOptimizer {
 	}
 
 	public void initializeOptimization() {
-		
+		/*
 		System.err.println("g2o_SparseOptimizer - initializeOptimization()");
 		
 		System.err.println("vertices: " + vertices.size());
@@ -48,19 +48,19 @@ public class g2o_SparseOptimizer {
 			System.err.println("e - " + e.vertices[0].id + " -> " + e.vertices[1].id + " - " 
 						+ Arrays.toString(e.measurement.ln()));
 		}
-		
+		*/
 	}
 
 	public int optimize(int num_iterations, boolean b) {
 		if (true)
 			return 0;
-		System.err.println("g2o_SparseOptimizer - optimize()");
+		//System.err.println("g2o_SparseOptimizer - optimize()");
 		
 		
 		// Clear
-		System.err.println("CLEAR LIBRARY");
+		//System.err.println("CLEAR LIBRARY");
 		Sim3_graph_libraryLibrary.clear();
-		System.err.println("FINISHED CLEAR LIBRARY");
+		//System.err.println("FINISHED CLEAR LIBRARY");
 		
 		
 		// Add vertices
@@ -75,9 +75,9 @@ public class g2o_SparseOptimizer {
 		
 		
 		// Start optimization
-		System.err.println("g2o_SparseOptimizer - start optimize()");
+		//System.err.println("g2o_SparseOptimizer - start optimize()");
 		int result = Sim3_graph_libraryLibrary.optimize(num_iterations, false);
-		System.err.println("OPTIMIZE RESULT: " + result);
+		//System.err.println("OPTIMIZE RESULT: " + result);
 		
 		// Update all vertex estimates
 		for (VertexSim3 v : vertices) {
@@ -108,7 +108,7 @@ public class g2o_SparseOptimizer {
 		
 		// Test read, print.
 		Sim3_graph_libraryLibrary.getVertexEstimate(graphVertex.id);
-		System.err.println("LIBRARY TEST" + Arrays.toString(getp7()));
+		//System.err.println("LIBRARY TEST" + Arrays.toString(getp7()));
 		
 	}
 	
@@ -179,17 +179,17 @@ public class g2o_SparseOptimizer {
 		SIM3 v2 = v1.mul(e12);
 		
 		
-		System.out.println("test");
+		// System.out.println("test");
 
-		System.out.println(Arrays.toString(v0.ln()));
+		// System.out.println(Arrays.toString(v0.ln()));
 		
-		System.out.println(Arrays.toString(e01.ln()));
+		// System.out.println(Arrays.toString(e01.ln()));
 		
-		System.out.println(Arrays.toString(v1.ln()));
+		// System.out.println(Arrays.toString(v1.ln()));
 		
-		System.out.println(Arrays.toString(e12.ln()));
+		// System.out.println(Arrays.toString(e12.ln()));
 		
-		System.out.println(Arrays.toString(v2.ln()));
+		// System.out.println(Arrays.toString(v2.ln()));
 		
 	}
 

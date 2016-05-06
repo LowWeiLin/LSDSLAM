@@ -100,11 +100,6 @@ public class FramePoseStruct {
 		// abs. pose is computed from the parent's abs. pose, and cached.
 		cacheValidFor = cacheValidCounter;
 		
-		/*
-		System.out.println("+++");
-		System.out.println(trackingParent.getCamToWorld(recursionDepth+1).toString());
-		System.out.println(thisToParent_raw.toString());
-		*/
 		
 		return camToWorld = trackingParent.getCamToWorld(recursionDepth+1).mul(thisToParent_raw);
 	}
